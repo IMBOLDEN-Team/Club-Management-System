@@ -1,0 +1,2 @@
+create DATABASE
+user admin
