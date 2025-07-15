@@ -3,9 +3,9 @@
 $host = 'localhost';
 $user = 'root';
 $password = '';
-$database = 'Club-Management-System';
+$database = 'CLUB-MANAGEMENT-SYSTEM';
 
-$sambungan = mysqli_connect($host, $user, $password, $database)
-or die('Sambungan gagal');
+$connect = mysqli_connect($host, $user, $password, $database)
+or die('Connection failed');
 ?>
 </html>
