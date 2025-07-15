@@ -57,4 +57,3 @@ CREATE TABLE ACTIVITY_PARTICIPANT (
     PRIMARY KEY (student_id, club_activity_id)
 );
 
-CREATE TABLE TEST();
