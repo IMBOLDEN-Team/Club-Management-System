@@ -56,3 +56,5 @@ CREATE TABLE ACTIVITY_PARTICIPANT (
     FOREIGN KEY (club_activity_id) REFERENCES CLUB_ACTIVITY(id),
     PRIMARY KEY (student_id, club_activity_id)
 );
+
+CREATE TABLE TEST();
