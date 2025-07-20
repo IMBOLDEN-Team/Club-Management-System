@@ -1,6 +1,5 @@
-<?php
-// header.php
-?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,13 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Club Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/x-icon" href="img/title.png" sizes="32x32 48x48 64x64">
+    <link rel="shortcut icon" href="img/title.png" type="image/png">
     <style>
         .hover-accent:hover {
             color: #F59E0B;
             transition: color 0.3s ease;
         }
     </style>
+    
 </head>
 <body class="bg-gray-50 font-sans">
     <header class="bg-[#0F172A] text-white shadow-md sticky top-0 z-50">
@@ -31,10 +31,8 @@
                 
                 <!-- Navigation links on the left side -->
                 <nav class="hidden md:flex space-x-1 lg:space-x-4">
-                    <a href="#" class="px-3 py-2 rounded-md text-sm font-medium hover-accent">Club</a>
+                    <a href="club_list.php" class="px-3 py-2 rounded-md text-sm font-medium hover-accent">Club</a>
                     <a href="#" class="px-3 py-2 rounded-md text-sm font-medium hover-accent">Activity</a>
-                    <a href="#about" class="px-3 py-2 rounded-md text-sm font-medium hover-accent">About Us</a>
-                    <a href="#contact" class="px-3 py-2 rounded-md text-sm font-medium hover-accent">Contact Us</a>
                     <a href="#" class="px-3 py-2 rounded-md text-sm font-medium bg-[#F59E0B] text-[#0F172A] hover:bg-amber-400 rounded-md transition-colors duration-300">Sign in</a>
                 </nav>
                 
@@ -53,8 +51,6 @@
                 <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 flex flex-col">
                     <a href="#" class="px-3 py-2 rounded-md text-base font-medium hover-accent">Club</a>
                     <a href="#" class="px-3 py-2 rounded-md text-base font-medium hover-accent">Activity</a>
-                    <a href="#about" class="px-3 py-2 rounded-md text-sm font-medium hover-accent">About Us</a>
-                    <a href="#contact" class="px-3 py-2 rounded-md text-sm font-medium hover-accent">Contact Us</a>
                     <a href="#" class="px-3 py-2 rounded-md text-base font-medium bg-[#F59E0B] text-[#0F172A] hover:bg-amber-400 rounded-md text-center transition-colors duration-300">Sign in</a>
                 </div>
             </div>

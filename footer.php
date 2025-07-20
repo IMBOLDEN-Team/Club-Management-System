@@ -5,13 +5,6 @@
     <div class="flex flex-col md:grid md:grid-cols-3 gap-8 mb-10">
       <!-- First Row for Mobile -->
       <div class="flex flex-row justify-between md:contents">
-        <!-- Column 1: About -->
-        <div class="w-[48%] md:w-auto">
-          <h3 class="text-lg font-semibold mb-4">About</h3>
-          <ul class="space-y-3">
-            <li><a href="#about" class="hover:underline text-gray-300">About Us</a></li>
-          </ul>
-        </div>
 
         <!-- Column 2: Support - Right side on mobile -->
         <div class="w-[48%] md:w-auto">
