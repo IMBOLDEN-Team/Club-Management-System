@@ -2,6 +2,22 @@
 <?php include "header.php" ?>
 
 <main class="min-h-screen">
+    <!-- Login/Logout Messages -->
+    <?php if (isset($_GET['login']) && $_GET['login'] === 'success'): ?>
+        <div class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-lg shadow-lg animate-fade-in">
+            <?php if (isset($_GET['new_user']) && $_GET['new_user'] === '1'): ?>
+                Welcome! Your account has been created successfully.
+            <?php else: ?>
+                Welcome back! You have been logged in successfully.
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if (isset($_GET['logout']) && $_GET['logout'] === 'success'): ?>
+        <div class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-blue-100 border border-blue-400 text-blue-700 px-6 py-3 rounded-lg shadow-lg animate-fade-in">
+            You have been logged out successfully.
+        </div>
+    <?php endif; ?>
 
     <!-- Scroll to top button -->
     <button id="scrollToTopBtn" class="fixed bottom-6 right-6 bg-[#0F172A] text-white p-3 rounded-full shadow-lg opacity-0 invisible transition-all duration-300 hover:bg-[#334155] z-50">
@@ -478,6 +494,17 @@ document.addEventListener('DOMContentLoaded', function() {
             top: 0,
             behavior: 'smooth'
         });
+    });
+
+    // Auto-hide notification messages
+    const notifications = document.querySelectorAll('.fixed.top-20');
+    notifications.forEach(notification => {
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
     });
 });
 </script>
