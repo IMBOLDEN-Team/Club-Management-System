@@ -192,6 +192,27 @@ mysqli_stmt_bind_param($stmt, 'i', $club_id);
 mysqli_stmt_execute($stmt);
 $activities_result = mysqli_stmt_get_result($stmt);
 $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0;
+
+// Ensure join request table exists and fetch pending count for UI badges
+mysqli_query($connect, "CREATE TABLE IF NOT EXISTS CLUB_JOIN_REQUEST (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    club_id INT NOT NULL,
+    status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    responded_at DATETIME NULL,
+    UNIQUE KEY uniq_request (student_id, club_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$pending_requests = 0;
+$pc = mysqli_prepare($connect, "SELECT COUNT(*) AS cnt FROM CLUB_JOIN_REQUEST WHERE club_id = ? AND status = 'pending'");
+mysqli_stmt_bind_param($pc, 'i', $club_id);
+mysqli_stmt_execute($pc);
+$pcRes = mysqli_stmt_get_result($pc);
+if ($pcRes) {
+    $row = mysqli_fetch_assoc($pcRes);
+    $pending_requests = (int)($row['cnt'] ?? 0);
+}
 ?>
 
 <!DOCTYPE html>
@@ -233,9 +254,16 @@ $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0
                     </a>
                     
                     <a href="#members" onclick="showSection('members')" 
-                       class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-[#1E293B] transition-colors duration-200">
-                        <i class="fas fa-users text-gray-400"></i>
-                        <span class="font-medium">Manage Members</span>
+                       class="flex items-center justify-between px-4 py-3 rounded-lg hover:bg-[#1E293B] transition-colors duration-200">
+                        <span class="flex items-center space-x-3">
+                            <i class="fas fa-users text-gray-400"></i>
+                            <span class="font-medium">Manage Members</span>
+                        </span>
+                        <?php if ($pending_requests > 0): ?>
+                        <span class="ml-3 inline-flex items-center justify-center text-xs font-semibold rounded-full bg-amber-500 text-white px-2 py-0.5 min-w-[1.25rem]">
+                            <?= $pending_requests ?>
+                        </span>
+                        <?php endif; ?>
                     </a>
                     
                     <a href="#hierarchy" onclick="showSection('hierarchy')" 
@@ -323,21 +351,33 @@ $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0
 
             <!-- Members Management Section -->
             <div id="members" class="section p-8 hidden">
-                <div class="flex justify-between items-center mb-8">
-                    <h2 class="text-3xl font-bold text-gray-800">Manage Club Members</h2>
-                    <button onclick="openAddMemberModal()" class="bg-[#F59E0B] text-white px-6 py-3 rounded-lg hover:bg-amber-600 transition-colors duration-200">
-                        <i class="fas fa-plus mr-2"></i>Add New Member
-                    </button>
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-800">Manage Club Members</h2>
+                        <p class="text-gray-500 mt-1">Add members, handle join requests, and set positions</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-amber-50 text-amber-700 border border-amber-200">
+                            <i class="fas fa-inbox mr-2"></i><?= $pending_requests ?> Pending
+                        </span>
+                        <button onclick="openAddMemberModal()" class="bg-gradient-to-r from-amber-500 to-rose-500 text-white px-6 py-3 rounded-lg hover:from-amber-600 hover:to-rose-600 transition-colors duration-200 shadow">
+                            <i class="fas fa-plus mr-2"></i>Add New Member
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Pending Join Requests -->
-                <div class="bg-white rounded-xl shadow-md mb-8">
-                    <div class="p-6 border-b">
-                        <h3 class="text-lg font-semibold text-gray-800">Pending Join Requests</h3>
+                <div class="bg-white rounded-2xl shadow-md mb-8 border border-gray-100">
+                    <div class="p-6 border-b flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><i class="fas fa-inbox"></i></span>
+                            <h3 class="text-lg font-semibold text-gray-800">Pending Join Requests</h3>
+                        </div>
+                        <span class="px-2.5 py-1 text-xs rounded-full bg-gray-100 text-gray-700 font-medium"><?= $pending_requests ?></span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full">
-                            <thead class="bg-gray-50">
+                            <thead class="bg-gray-50/80 backdrop-blur">
                                 <tr>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Student</th>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Requested At</th>
@@ -364,18 +404,23 @@ $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0
                                         <form action="approve_join_request.php" method="POST" class="inline swal-confirm" data-title="Approve this request?" data-confirm="Approve">
                                             <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
                                             <input type="hidden" name="action" value="approve">
-                                            <button class="px-3 py-1 rounded-md bg-green-50 text-green-700 hover:bg-green-100 text-sm">Approve</button>
+                                            <button class="px-3 py-1.5 rounded-md bg-green-50 text-green-700 hover:bg-green-100 text-sm shadow-sm">Approve</button>
                                         </form>
                                         <form action="approve_join_request.php" method="POST" class="inline swal-confirm" data-title="Reject this request?" data-confirm="Reject">
                                             <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
                                             <input type="hidden" name="action" value="reject">
-                                            <button class="px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 text-sm">Reject</button>
+                                            <button class="px-3 py-1.5 rounded-md bg-red-50 text-red-700 hover:bg-red-100 text-sm shadow-sm">Reject</button>
                                         </form>
                                     </td>
                                 </tr>
                                 <?php endwhile; else: ?>
                                 <tr>
-                                    <td colspan="3" class="px-6 py-6 text-center text-gray-500">No pending requests</td>
+                                    <td colspan="3" class="px-6 py-10 text-center text-gray-500">
+                                        <div class="flex flex-col items-center gap-2">
+                                            <i class="fas fa-inbox text-3xl text-gray-300"></i>
+                                            <p>No pending requests</p>
+                                        </div>
+                                    </td>
                                 </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -383,10 +428,10 @@ $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
                     <div class="overflow-x-auto">
                         <table class="w-full">
-                            <thead class="bg-gray-50">
+                            <thead class="bg-gray-50/80 backdrop-blur">
                                 <tr>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Student Name</th>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
@@ -407,7 +452,7 @@ $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0
                                             <div class="text-sm text-gray-600"><?= htmlspecialchars($member['email']) ?></div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 shadow-sm">
                                                 <?= htmlspecialchars($member['position']) ?>
                                             </span>
                                         </td>
@@ -415,13 +460,13 @@ $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0
                                             <div class="text-sm text-gray-500"><?= date('M d, Y', strtotime($member['joined'])) ?></div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button onclick="openSetHierarchyModal(<?= $member['student_id'] ?>, '<?= htmlspecialchars($member['position']) ?>')" class="text-indigo-600 hover:text-indigo-900 mr-3 px-3 py-1 rounded-md hover:bg-indigo-50 transition-colors duration-200">
+                                            <button onclick="openSetHierarchyModal(<?= $member['student_id'] ?>, '<?= htmlspecialchars($member['position']) ?>')" class="text-indigo-600 hover:text-indigo-900 mr-3 px-3 py-1.5 rounded-md hover:bg-indigo-50 transition-colors duration-200 border border-indigo-100">
                                                 <i class="fas fa-edit mr-1"></i>Set Position
                                             </button>
                                             <form method="POST" class="inline swal-confirm" data-title="Remove this member?" data-confirm="Remove">
                                                 <input type="hidden" name="action" value="delete_member">
                                                 <input type="hidden" name="student_id" value="<?= $member['student_id'] ?>">
-                                                <button type="submit" class="text-red-600 hover:text-red-900 px-3 py-1 rounded-md hover:bg-red-50 transition-colors duration-200">
+                                                <button type="submit" class="text-red-600 hover:text-red-900 px-3 py-1.5 rounded-md hover:bg-red-50 transition-colors duration-200 border border-red-100">
                                                     <i class="fas fa-trash mr-1"></i>Remove
                                                 </button>
                                             </form>
@@ -489,6 +534,8 @@ $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0
                     </div>
                 </div>
             </div>
+
+
 
             <!-- Activities Section -->
             <div id="activities" class="section p-8 hidden">
