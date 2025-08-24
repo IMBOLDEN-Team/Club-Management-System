@@ -1,5 +1,8 @@
 
-<?php include "header.php" ?>
+<?php 
+session_start();
+include "header.php" 
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -28,6 +31,14 @@
         </div>
         
         <div class="container mx-auto px-4 py-8 relative z-10">
+            
+            <!-- Flash Messages -->
+            <?php if (isset($_SESSION['flash'])): ?>
+                <?php $flash = $_SESSION['flash']; unset($_SESSION['flash']); ?>
+                <div class="max-w-2xl mx-auto mb-6 p-4 rounded-xl <?= $flash['type'] === 'success' ? 'bg-green-100 border border-green-400 text-green-700' : 'bg-red-100 border border-red-400 text-red-700' ?> animate-fade-in">
+                    <?= htmlspecialchars($flash['message']) ?>
+                </div>
+            <?php endif; ?>
             
             <!-- Header Section -->
             <div class="text-center mb-12">
@@ -74,6 +85,56 @@
                             $club_name = htmlspecialchars($club['name']);
                             $created_date = date('M Y', strtotime($club['created_date']));
                             
+                            // Check student's status for this club
+                            $join_status = 'none';
+                            $join_button_text = 'Join Club';
+                            $join_button_class = 'bg-gradient-to-r from-[#F59E0B] to-[#EF4444] hover:from-[#EF4444] hover:to-[#F59E0B]';
+                            $join_button_disabled = false;
+                            
+                            if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'student') {
+                                $student_id = $_SESSION['user_id'];
+                                
+                                // Ensure CLUB_JOIN_REQUEST table exists
+                                $create_table_query = "CREATE TABLE IF NOT EXISTS CLUB_JOIN_REQUEST (
+                                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                                    student_id INT NOT NULL,
+                                    club_id INT NOT NULL,
+                                    status ENUM('pending','approved','rejected') DEFAULT 'pending',
+                                    requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                    responded_at DATETIME NULL,
+                                    UNIQUE KEY uniq_request (student_id, club_id)
+                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+                                mysqli_query($connect, $create_table_query);
+                                
+                                // Check if already a member
+                                $member_query = "SELECT * FROM CLUB_PARTICIPANT WHERE student_id = ? AND club_id = ?";
+                                $member_stmt = mysqli_prepare($connect, $member_query);
+                                mysqli_stmt_bind_param($member_stmt, 'ii', $student_id, $club_id);
+                                mysqli_stmt_execute($member_stmt);
+                                $member_result = mysqli_stmt_get_result($member_stmt);
+                                
+                                if (mysqli_num_rows($member_result) > 0) {
+                                    $join_status = 'member';
+                                    $join_button_text = 'Member';
+                                    $join_button_class = 'bg-gray-400 cursor-not-allowed';
+                                    $join_button_disabled = true;
+                                } else {
+                                    // Check if there's a pending request
+                                    $request_query = "SELECT * FROM CLUB_JOIN_REQUEST WHERE student_id = ? AND club_id = ? AND status = 'pending'";
+                                    $request_stmt = mysqli_prepare($connect, $request_query);
+                                    mysqli_stmt_bind_param($request_stmt, 'ii', $student_id, $club_id);
+                                    mysqli_stmt_execute($request_stmt);
+                                    $request_result = mysqli_stmt_get_result($request_stmt);
+                                    
+                                    if (mysqli_num_rows($request_result) > 0) {
+                                        $join_status = 'pending';
+                                        $join_button_text = 'Pending Approval';
+                                        $join_button_class = 'bg-yellow-500 cursor-not-allowed';
+                                        $join_button_disabled = true;
+                                    }
+                                }
+                            }
+                            
                             // Handle logo - convert BLOB to base64 if exists
                             $logo_src = '';
                             if (!empty($club['logo'])) {
@@ -111,14 +172,40 @@
                                         <span class="text-sm">Est. <?= $created_date ?></span>
                                     </div>
                                     
-                                    <!-- View Details Button -->
-                                    <button 
-                                        onclick="viewClubDetails(<?= $club_id ?>)"
-                                        class="w-full bg-gradient-to-r from-[#0F172A] to-[#334155] text-white px-6 py-3 rounded-xl font-semibold hover:from-[#F59E0B] hover:to-[#EF4444] transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group/btn"
-                                    >
-                                        <span class="relative z-10">View Details</span>
-                                        <div class="absolute inset-0 bg-white/20 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
-                                    </button>
+                                    <!-- Action Buttons -->
+                                    <div class="space-y-3">
+                                        <!-- View Details Button -->
+                                        <button 
+                                            onclick="viewClubDetails(<?= $club_id ?>)"
+                                            class="w-full bg-gradient-to-r from-[#0F172A] to-[#334155] text-white px-6 py-3 rounded-xl font-semibold hover:from-[#F59E0B] hover:to-[#EF4444] transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group/btn"
+                                        >
+                                            <span class="relative z-10">View Details</span>
+                                            <div class="absolute inset-0 bg-white/20 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
+                                        </button>
+                                        
+                                        <!-- Join Club Button (only for students) -->
+                                        <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'student'): ?>
+                                            <?php if ($join_status === 'none'): ?>
+                                                <form method="POST" action="join_club.php" class="w-full">
+                                                    <input type="hidden" name="club_id" value="<?= $club_id ?>">
+                                                    <button 
+                                                        type="submit"
+                                                        class="w-full <?= $join_button_class ?> text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group/btn"
+                                                    >
+                                                        <span class="relative z-10"><?= $join_button_text ?></span>
+                                                        <div class="absolute inset-0 bg-white/20 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <button 
+                                                    disabled
+                                                    class="w-full <?= $join_button_class ?> text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg relative overflow-hidden"
+                                                >
+                                                    <span class="relative z-10"><?= $join_button_text ?></span>
+                                                </button>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
                             <?php
