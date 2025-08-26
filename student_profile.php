@@ -7,7 +7,8 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'student') {
 	exit();
 }
 
-include 'index.php';
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/components/breadcrumb.php';
 
 $student_id = (int)$_SESSION['user_id'];
 $student_email = $_SESSION['username'] ?? '';
@@ -85,6 +86,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	<script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 min-h-screen">
+	<!-- Breadcrumb Navigation -->
+	<div class="absolute top-4 left-4 z-10">
+		<?php 
+		$breadcrumb = new Breadcrumb();
+		$breadcrumb->addItem('Student Portal', '#', 'fas fa-user-graduate');
+		$breadcrumb->addItem('Dashboard', 'student_dashboard.php', 'fas fa-tachometer-alt');
+		$breadcrumb->addItem('My Profile', null, 'fas fa-user');
+		echo $breadcrumb->render();
+		?>
+	</div>
+	
 	<header class="bg-[#0F172A] text-white shadow-md sticky top-0 z-50">
 		<div class="container mx-auto px-4 py-3 flex items-center justify-between">
 			<a href="student_dashboard.php" class="flex items-center space-x-3">

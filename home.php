@@ -1,7 +1,11 @@
 
-<?php include "header.php" ?>
+<?php 
+include "header.php";
+require_once __DIR__ . '/components/breadcrumb.php';
+?>
 
 <main class="min-h-screen">
+
     <!-- Login/Logout Messages -->
     <?php if (isset($_GET['login']) && $_GET['login'] === 'success'): ?>
         <div class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-lg shadow-lg animate-fade-in">
@@ -13,11 +17,24 @@
         </div>
     <?php endif; ?>
 
-    <?php if (isset($_GET['logout']) && $_GET['logout'] === 'success'): ?>
-        <div class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-blue-100 border border-blue-400 text-blue-700 px-6 py-3 rounded-lg shadow-lg animate-fade-in">
-            You have been logged out successfully.
-        </div>
-    <?php endif; ?>
+    <?php 
+    require_once __DIR__ . '/components/notification.php';
+    
+    if (isset($_GET['logout']) && $_GET['logout'] === 'success') {
+        Notification::showLogout();
+    }
+    
+    if (isset($_GET['login']) && $_GET['login'] === 'success') {
+        Notification::showLogin();
+    }
+    
+    if (isset($_GET['register']) && $_GET['register'] === 'success') {
+        Notification::showRegistration();
+    }
+    
+    $notification = Notification::getInstance();
+    echo $notification->render();
+    ?>
 
     <!-- Scroll to top button -->
     <button id="scrollToTopBtn" class="fixed bottom-6 right-6 bg-[#0F172A] text-white p-3 rounded-full shadow-lg opacity-0 invisible transition-all duration-300 hover:bg-[#334155] z-50">
@@ -37,125 +54,7 @@
         </div>
     </section>
 
-    <section class="min-h-screen bg-gradient-to-br from-[#F1F5F9] via-[#E2E8F0] to-[#CBD5E1] py-16 px-4 sm:px-6 lg:px-8 flex items-center relative overflow-hidden z-0">
-    <!-- Animated background elements with icons -->
-    <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        <!-- Floating background blobs -->
-        <div class="absolute -top-24 -left-24 w-96 h-96 bg-gradient-to-r from-blue-200/20 to-purple-200/20 rounded-full blur-3xl animate-float"></div>
-        <div class="absolute -bottom-32 -right-32 w-80 h-80 bg-gradient-to-r from-orange-200/20 to-pink-200/20 rounded-full blur-3xl animate-float-delayed"></div>
-        <div class="absolute top-1/2 left-1/4 w-64 h-64 bg-gradient-to-r from-green-200/15 to-blue-200/15 rounded-full blur-2xl animate-float-slow"></div>
-        
-        <!-- Animated icons -->
-        <div class="absolute top-20 left-10 text-4xl opacity-20 animate-bounce-icon">🎯</div>
-        <div class="absolute top-40 right-20 text-3xl opacity-25 animate-float-icon" style="animation-delay: 1s">🏆</div>
-        <div class="absolute bottom-40 left-20 text-5xl opacity-15 animate-spin-slow">⚡</div>
-        <div class="absolute bottom-20 right-40 text-3xl opacity-20 animate-pulse-icon" style="animation-delay: 2s">🚀</div>
-        <div class="absolute top-1/3 left-1/2 text-4xl opacity-10 animate-float-icon" style="animation-delay: 3s">💡</div>
-        <div class="absolute top-2/3 right-1/4 text-3xl opacity-25 animate-bounce-icon" style="animation-delay: 1.5s">🎨</div>
-        <div class="absolute top-1/4 right-1/3 text-2xl opacity-20 animate-float-icon" style="animation-delay: 4s">📚</div>
-        <div class="absolute bottom-1/3 left-1/3 text-4xl opacity-15 animate-pulse-icon" style="animation-delay: 2.5s">🌟</div>
-    </div>
-    
-    <div class="max-w-7xl mx-auto relative">
-        <!-- Enhanced header -->
-        <div class="text-center mb-16">
-            <h2 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#0F172A] to-[#334155] bg-clip-text text-transparent mb-4 animate-fade-in">
-                Latest Activities
-            </h2>
-            <div class="w-24 h-1 bg-gradient-to-r from-[#F59E0B] to-[#EF4444] mx-auto rounded-full"></div>
-            <p class="text-[#64748B] mt-4 text-lg">Discover what's happening in our community</p>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <?php include "index.php" ?>
-            <?php
-            $hasActivities = false;
-            
-            if (isset($connect)) {
-                $query = "SELECT ca.name, ca.start, ca.end, ca.merit_point, c.name AS club_name 
-                        FROM CLUB_ACTIVITY ca 
-                        JOIN CLUB c ON ca.club_id = c.id 
-                        WHERE ca.end >= NOW()
-                        ORDER BY ca.start ASC 
-                        LIMIT 3";
-                $result = mysqli_query($connect, $query);
-                
-                if ($result && mysqli_num_rows($result) > 0) {
-                    $hasActivities = true;
-                    $cardIndex = 0;
-                    while ($row = mysqli_fetch_assoc($result)) {
-                        $start_date = date('M j, Y', strtotime($row['start']));
-                        $end_date = date('M j, Y', strtotime($row['end']));
-                        $cardIndex++;
-                        ?>
-                        <div class="group bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-white/20 hover:border-[#F59E0B]/30 animate-slide-up relative overflow-hidden" style="animation-delay: <?= $cardIndex * 0.2 ?>s">
-                            <!-- Card gradient overlay -->
-                            <div class="absolute inset-0 bg-gradient-to-br from-transparent to-[#F59E0B]/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            
-                            <div class="relative z-10">
-                                <!-- Header with fixed merit badge -->
-                                <div class="flex justify-between items-start mb-6">
-                                    <h3 class="text-xl font-bold text-[#0F172A] group-hover:text-[#F59E0B] transition-colors duration-300 flex-1 pr-4">
-                                        <?= htmlspecialchars($row['name']) ?>
-                                    </h3>
-                                    <div class="flex-shrink-0">
-                                        <span class="inline-flex items-center bg-gradient-to-r from-[#F59E0B] to-[#EF4444] text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-300 whitespace-nowrap">
-                                            <?= htmlspecialchars($row['merit_point']) ?> pts
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                <!-- Club info with icon -->
-                                <div class="flex items-center mb-4 text-[#64748B]">
-                                    <div class="w-2 h-2 bg-[#F59E0B] rounded-full mr-3 animate-pulse flex-shrink-0"></div>
-                                    <p class="font-medium">by <?= htmlspecialchars($row['club_name']) ?></p>
-                                </div>
-                                
-                                <!-- Date with enhanced styling -->
-                                <div class="bg-[#F8FAFC] p-3 rounded-lg mb-6 border-l-4 border-[#F59E0B]">
-                                    <div class="flex items-center text-[#475569] font-medium">
-                                        <span class="mr-2">📅</span>
-                                        <span class="text-sm"><?= $start_date ?> - <?= $end_date ?></span>
-                                    </div>
-                                </div>
-                                
-                                <!-- Enhanced CTA button -->
-                                <button class="group/btn w-full bg-gradient-to-r from-[#0F172A] to-[#334155] text-white px-6 py-3 rounded-xl font-semibold hover:from-[#F59E0B] hover:to-[#EF4444] transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden">
-                                    <span class="relative z-10">View Details</span>
-                                    <div class="absolute inset-0 bg-white/20 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
-                                </button>
-                            </div>
-                        </div>
-                        <?php
-                    }
-                }
-            }
-            
-            if (!$hasActivities): ?>
-                <div class="col-span-3 text-center py-16">
-                    <div class="max-w-md mx-auto">
-                        <!-- Empty state with animation -->
-                        <div class="relative mb-8">
-                            <div class="w-32 h-32 mx-auto bg-gradient-to-br from-[#F59E0B]/20 to-[#EF4444]/20 rounded-full flex items-center justify-center animate-bounce-slow">
-                                <div class="text-6xl">📅</div>
-                            </div>
-                            <div class="absolute inset-0 bg-gradient-to-br from-[#F59E0B]/10 to-[#EF4444]/10 rounded-full blur-xl animate-pulse"></div>
-                        </div>
-                        
-                        <h3 class="text-3xl font-bold bg-gradient-to-r from-[#0F172A] to-[#64748B] bg-clip-text text-transparent mb-4">
-                            No Activities Yet
-                        </h3>
-                        <p class="text-xl text-[#64748B] mb-6">
-                            Something exciting is brewing! Stay tuned for upcoming events.
-                        </p>
-                        
-                        
-                    </div>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-</section>
+
 
 <style>
 @keyframes fade-in {
@@ -252,6 +151,22 @@
 
 .animate-spin-slow {
     animation: spin-slow 20s linear infinite;
+}
+
+/* Notification animations */
+.animate-slide-down {
+    animation: slideDown 0.5s ease-out forwards;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%) translateX(-50%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) translateX(-50%);
+        opacity: 1;
+    }
 }
 </style>
 

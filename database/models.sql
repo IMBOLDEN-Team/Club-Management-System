@@ -6,8 +6,9 @@ CREATE TABLE CLUB (
     id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `name` VARCHAR(100),
     logo BLOB,
+    member_limit INT DEFAULT NULL,
     created_date DATE DEFAULT (DATE(CONVERT_TZ(NOW(), @@session.time_zone, '+08:00')))
-
+);
 
 -- User
 CREATE TABLE `ADMIN` (

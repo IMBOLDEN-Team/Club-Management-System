@@ -1,0 +1,306 @@
+[2025-08-25 10:40:10] Exception: Unknown column 'member_limit' in 'field list' in C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php on line 224
+User: 3 (clubber)
+URL: /Club-Management-System/clubber_dashboard.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php(224): mysqli_prepare(Object(mysqli), 'SELECT member_l...')
+#1 {main}
+[2025-08-25 10:40:16] Exception: Unknown column 'member_limit' in 'field list' in C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php on line 224
+User: 3 (clubber)
+URL: /Club-Management-System/clubber_dashboard.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php(224): mysqli_prepare(Object(mysqli), 'SELECT member_l...')
+#1 {main}
+[2025-08-25 10:40:22] Exception: Unknown column 'member_limit' in 'field list' in C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php on line 224
+User: 3 (clubber)
+URL: /Club-Management-System/clubber_dashboard.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php(224): mysqli_prepare(Object(mysqli), 'SELECT member_l...')
+#1 {main}
+[2025-08-25 10:40:43] Exception: Unknown column 'member_limit' in 'field list' in C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php on line 224
+User: 3 (clubber)
+URL: /Club-Management-System/clubber_dashboard.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php(224): mysqli_prepare(Object(mysqli), 'SELECT member_l...')
+#1 {main}
+[2025-08-25 10:51:33] Exception: Unknown column 'member_limit' in 'field list' in C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php on line 224
+User: 3 (clubber)
+URL: /Club-Management-System/clubber_dashboard.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php(224): mysqli_prepare(Object(mysqli), 'SELECT member_l...')
+#1 {main}
+[2025-08-25 11:01:08] Exception: 9 arguments are required, 8 given in C:\xampp\htdocs\Club-Management-System\config\security.php on line 306
+User: guest (guest)
+URL: unknown
+IP: unknown
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\security.php(306): sprintf('[%s] SECURITY: ...', '2025-08-25 11:0...', 'Suspicious Acti...', 'guest', 'guest', 'unknown', 'unknown', 'Suspicious user...')
+#1 C:\xampp\htdocs\Club-Management-System\config\security.php(348): Security->logSecurityEvent('Suspicious Acti...', 'Suspicious user...')
+#2 C:\xampp\htdocs\Club-Management-System\config\config.php(52): Security->checkSuspiciousActivity()
+#3 C:\xampp\htdocs\Club-Management-System\fix_database.php(3): include('C:\\xampp\\htdocs...')
+#4 {main}
+[2025-08-25 11:01:25] Exception: 9 arguments are required, 8 given in C:\xampp\htdocs\Club-Management-System\config\security.php on line 306
+User: guest (guest)
+URL: unknown
+IP: unknown
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\security.php(306): sprintf('[%s] SECURITY: ...', '2025-08-25 11:0...', 'Suspicious Acti...', 'guest', 'guest', 'unknown', 'unknown', 'Suspicious user...')
+#1 C:\xampp\htdocs\Club-Management-System\config\security.php(348): Security->logSecurityEvent('Suspicious Acti...', 'Suspicious user...')
+#2 C:\xampp\htdocs\Club-Management-System\config\config.php(52): Security->checkSuspiciousActivity()
+#3 C:\xampp\htdocs\Club-Management-System\fix_database.php(3): include('C:\\xampp\\htdocs...')
+#4 {main}
+[2025-08-25 11:01:46] Warning: session_start(): Session cannot be started after headers have already been sent in C:\xampp\htdocs\Club-Management-System\config\security.php on line 15
+User: guest (guest)
+URL: unknown
+IP: unknown
+
+[2025-08-25 11:01:46] Exception: 9 arguments are required, 8 given in C:\xampp\htdocs\Club-Management-System\config\security.php on line 306
+User: guest (guest)
+URL: unknown
+IP: unknown
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\security.php(306): sprintf('[%s] SECURITY: ...', '2025-08-25 11:0...', 'Suspicious Acti...', 'guest', 'guest', 'unknown', 'unknown', 'Suspicious user...')
+#1 C:\xampp\htdocs\Club-Management-System\config\security.php(348): Security->logSecurityEvent('Suspicious Acti...', 'Suspicious user...')
+#2 C:\xampp\htdocs\Club-Management-System\config\config.php(52): Security->checkSuspiciousActivity()
+#3 C:\xampp\htdocs\Club-Management-System\fix_database.php(9): include('C:\\xampp\\htdocs...')
+#4 {main}
+[2025-08-25 13:30:54] Warning: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\Club-Management-System\header.php:166) in C:\xampp\htdocs\Club-Management-System\config\security.php on line 287
+User: guest (guest)
+URL: /Club-Management-System/home.php?logout=success
+IP: ::1
+
+[2025-08-25 14:38:29] Exception: Cannot delete or update a parent row: a foreign key constraint fails (`club-management-system`.`activity_participant`, CONSTRAINT `activity_participant_ibfk_2` FOREIGN KEY (`club_activity_id`) REFERENCES `club_activity` (`id`)) in C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php on line 102
+User: 3 (clubber)
+URL: /Club-Management-System/clubber_dashboard.php?login=success
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\clubber_dashboard.php(102): mysqli_stmt_execute(Object(mysqli_stmt))
+#1 {main}
+[2025-08-26 01:41:34] Warning: Undefined array key "file" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 181
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:34] Warning: Undefined array key "line" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 182
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:34] Database Error: No connection could be made because the target machine actively refused it in  on line 0
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:34] Exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\Club-Management-System\config\database.php on line 40
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\database.php(40): mysqli_connect('localhost', 'root', Object(SensitiveParameterValue), 'CLUB-MANAGEMENT...', 3306)
+#1 C:\xampp\htdocs\Club-Management-System\config\database.php(25): Database->connect()
+#2 C:\xampp\htdocs\Club-Management-System\config\database.php(30): Database->__construct()
+#3 C:\xampp\htdocs\Club-Management-System\config\database.php(281): Database::getInstance()
+#4 C:\xampp\htdocs\Club-Management-System\config\config.php(24): require_once('C:\\xampp\\htdocs...')
+#5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
+#6 C:\xampp\htdocs\Club-Management-System\login.php(20): include('C:\\xampp\\htdocs...')
+#7 {main}
+[2025-08-26 01:41:39] Warning: Undefined array key "file" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 181
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:39] Warning: Undefined array key "line" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 182
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:39] Database Error: No connection could be made because the target machine actively refused it in  on line 0
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:39] Exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\Club-Management-System\config\database.php on line 40
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\database.php(40): mysqli_connect('localhost', 'root', Object(SensitiveParameterValue), 'CLUB-MANAGEMENT...', 3306)
+#1 C:\xampp\htdocs\Club-Management-System\config\database.php(25): Database->connect()
+#2 C:\xampp\htdocs\Club-Management-System\config\database.php(30): Database->__construct()
+#3 C:\xampp\htdocs\Club-Management-System\config\database.php(281): Database::getInstance()
+#4 C:\xampp\htdocs\Club-Management-System\config\config.php(24): require_once('C:\\xampp\\htdocs...')
+#5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
+#6 C:\xampp\htdocs\Club-Management-System\login.php(20): include('C:\\xampp\\htdocs...')
+#7 {main}
+[2025-08-26 01:41:50] Warning: Undefined array key "file" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 181
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:50] Warning: Undefined array key "line" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 182
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:50] Database Error: No connection could be made because the target machine actively refused it in  on line 0
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:50] Exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\Club-Management-System\config\database.php on line 40
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\database.php(40): mysqli_connect('localhost', 'root', Object(SensitiveParameterValue), 'CLUB-MANAGEMENT...', 3306)
+#1 C:\xampp\htdocs\Club-Management-System\config\database.php(25): Database->connect()
+#2 C:\xampp\htdocs\Club-Management-System\config\database.php(30): Database->__construct()
+#3 C:\xampp\htdocs\Club-Management-System\config\database.php(281): Database::getInstance()
+#4 C:\xampp\htdocs\Club-Management-System\config\config.php(24): require_once('C:\\xampp\\htdocs...')
+#5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
+#6 C:\xampp\htdocs\Club-Management-System\login.php(20): include('C:\\xampp\\htdocs...')
+#7 {main}
+[2025-08-26 01:41:56] Warning: Undefined array key "file" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 181
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:57] Warning: Undefined array key "line" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 182
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:56] Database Error: No connection could be made because the target machine actively refused it in  on line 0
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:41:57] Exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\Club-Management-System\config\database.php on line 40
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\database.php(40): mysqli_connect('localhost', 'root', Object(SensitiveParameterValue), 'CLUB-MANAGEMENT...', 3306)
+#1 C:\xampp\htdocs\Club-Management-System\config\database.php(25): Database->connect()
+#2 C:\xampp\htdocs\Club-Management-System\config\database.php(30): Database->__construct()
+#3 C:\xampp\htdocs\Club-Management-System\config\database.php(281): Database::getInstance()
+#4 C:\xampp\htdocs\Club-Management-System\config\config.php(24): require_once('C:\\xampp\\htdocs...')
+#5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
+#6 C:\xampp\htdocs\Club-Management-System\login.php(20): include('C:\\xampp\\htdocs...')
+#7 {main}
+[2025-08-26 01:42:13] Warning: Undefined array key "file" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 181
+User: guest (guest)
+URL: /Club-Management-System/home.php
+IP: ::1
+
+[2025-08-26 01:42:13] Warning: Undefined array key "line" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 182
+User: guest (guest)
+URL: /Club-Management-System/home.php
+IP: ::1
+
+[2025-08-26 01:42:13] Database Error: No connection could be made because the target machine actively refused it in  on line 0
+User: guest (guest)
+URL: /Club-Management-System/home.php
+IP: ::1
+
+[2025-08-26 01:42:13] Exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\Club-Management-System\config\database.php on line 40
+User: guest (guest)
+URL: /Club-Management-System/home.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\database.php(40): mysqli_connect('localhost', 'root', Object(SensitiveParameterValue), 'CLUB-MANAGEMENT...', 3306)
+#1 C:\xampp\htdocs\Club-Management-System\config\database.php(25): Database->connect()
+#2 C:\xampp\htdocs\Club-Management-System\config\database.php(30): Database->__construct()
+#3 C:\xampp\htdocs\Club-Management-System\config\database.php(281): Database::getInstance()
+#4 C:\xampp\htdocs\Club-Management-System\config\config.php(24): require_once('C:\\xampp\\htdocs...')
+#5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
+#6 C:\xampp\htdocs\Club-Management-System\home.php(92): include('C:\\xampp\\htdocs...')
+#7 {main}
+[2025-08-26 01:42:17] Warning: Undefined array key "file" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 181
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:42:17] Warning: Undefined array key "line" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 182
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:42:17] Database Error: No connection could be made because the target machine actively refused it in  on line 0
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:42:17] Exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\Club-Management-System\config\database.php on line 40
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\database.php(40): mysqli_connect('localhost', 'root', Object(SensitiveParameterValue), 'CLUB-MANAGEMENT...', 3306)
+#1 C:\xampp\htdocs\Club-Management-System\config\database.php(25): Database->connect()
+#2 C:\xampp\htdocs\Club-Management-System\config\database.php(30): Database->__construct()
+#3 C:\xampp\htdocs\Club-Management-System\config\database.php(281): Database::getInstance()
+#4 C:\xampp\htdocs\Club-Management-System\config\config.php(24): require_once('C:\\xampp\\htdocs...')
+#5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
+#6 C:\xampp\htdocs\Club-Management-System\login.php(20): include('C:\\xampp\\htdocs...')
+#7 {main}
+[2025-08-26 01:43:31] Warning: Undefined array key "file" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 181
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:43:31] Warning: Undefined array key "line" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 182
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:43:31] Database Error: No connection could be made because the target machine actively refused it in  on line 0
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 01:43:31] Exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\Club-Management-System\config\database.php on line 40
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\database.php(40): mysqli_connect('localhost', 'root', Object(SensitiveParameterValue), 'CLUB-MANAGEMENT...', 3306)
+#1 C:\xampp\htdocs\Club-Management-System\config\database.php(25): Database->connect()
+#2 C:\xampp\htdocs\Club-Management-System\config\database.php(30): Database->__construct()
+#3 C:\xampp\htdocs\Club-Management-System\config\database.php(281): Database::getInstance()
+#4 C:\xampp\htdocs\Club-Management-System\config\config.php(24): require_once('C:\\xampp\\htdocs...')
+#5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
+#6 C:\xampp\htdocs\Club-Management-System\login.php(20): include('C:\\xampp\\htdocs...')
+#7 {main}
+[2025-08-26 09:54:23] Warning: Undefined array key "file" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 181
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 09:54:23] Warning: Undefined array key "line" in C:\xampp\htdocs\Club-Management-System\config\error_handler.php on line 182
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 09:54:23] Database Error: No connection could be made because the target machine actively refused it in  on line 0
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+
+[2025-08-26 09:54:23] Exception: No connection could be made because the target machine actively refused it in C:\xampp\htdocs\Club-Management-System\config\database.php on line 40
+User: guest (guest)
+URL: /Club-Management-System/login.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\config\database.php(40): mysqli_connect('localhost', 'root', Object(SensitiveParameterValue), 'CLUB-MANAGEMENT...', 3306)
+#1 C:\xampp\htdocs\Club-Management-System\config\database.php(25): Database->connect()
+#2 C:\xampp\htdocs\Club-Management-System\config\database.php(30): Database->__construct()
+#3 C:\xampp\htdocs\Club-Management-System\config\database.php(281): Database::getInstance()
+#4 C:\xampp\htdocs\Club-Management-System\config\config.php(24): require_once('C:\\xampp\\htdocs...')
+#5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
+#6 C:\xampp\htdocs\Club-Management-System\login.php(20): include('C:\\xampp\\htdocs...')
+#7 {main}

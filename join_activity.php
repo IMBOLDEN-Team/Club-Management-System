@@ -51,6 +51,28 @@ mysqli_stmt_execute($stmt);
 $memberRes = mysqli_stmt_get_result($stmt);
 
 if (!mysqli_fetch_row($memberRes)) {
+    // Check member limit before auto-enrolling
+    $limitQuery = 'SELECT member_limit FROM CLUB WHERE id = ?';
+    $stmt = mysqli_prepare($connect, $limitQuery);
+    mysqli_stmt_bind_param($stmt, 'i', $clubId);
+    mysqli_stmt_execute($stmt);
+    $limitRes = mysqli_stmt_get_result($stmt);
+    $clubData = mysqli_fetch_assoc($limitRes);
+    
+    // Get current member count
+    $countQuery = 'SELECT COUNT(*) as member_count FROM CLUB_PARTICIPANT WHERE club_id = ?';
+    $stmt = mysqli_prepare($connect, $countQuery);
+    mysqli_stmt_bind_param($stmt, 'i', $clubId);
+    mysqli_stmt_execute($stmt);
+    $countRes = mysqli_stmt_get_result($stmt);
+    $countData = mysqli_fetch_assoc($countRes);
+    $currentMembers = $countData['member_count'];
+    
+    // Check if club is at capacity
+    if ($clubData['member_limit'] !== null && $currentMembers >= $clubData['member_limit']) {
+        redirect_with_message('Cannot join activity: Club has reached its member limit (' . $clubData['member_limit'] . ' members).', 'error');
+    }
+    
     $insertMember = 'INSERT INTO CLUB_PARTICIPANT (student_id, club_id, position) VALUES (?, ?, ?)';
     $pos = 'Member';
     $stmt = mysqli_prepare($connect, $insertMember);

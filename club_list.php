@@ -1,7 +1,8 @@
 
 <?php 
 session_start();
-include "header.php" 
+include "header.php";
+require_once __DIR__ . '/components/breadcrumb.php';
 ?>
 
 <!DOCTYPE html>
@@ -40,6 +41,12 @@ include "header.php"
                 </div>
             <?php endif; ?>
             
+            <!-- Breadcrumb Navigation -->
+            <?php 
+            $breadcrumb = Breadcrumb::forClubDirectory();
+            echo $breadcrumb->render();
+            ?>
+            
             <!-- Header Section -->
             <div class="text-center mb-12">
                 <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#0F172A] to-[#334155] bg-clip-text text-transparent mb-4">
@@ -76,7 +83,7 @@ include "header.php"
             <div id="clubsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 <?php
                 if (isset($connect)) {
-                    $query = "SELECT id, name, logo, created_date FROM CLUB ORDER BY name ASC";
+                    $query = "SELECT c.id, c.name, c.logo, c.created_date, c.member_limit FROM CLUB c ORDER BY c.name ASC";
                     $result = mysqli_query($connect, $query);
                     
                     if ($result && mysqli_num_rows($result) > 0) {
@@ -85,55 +92,19 @@ include "header.php"
                             $club_name = htmlspecialchars($club['name']);
                             $created_date = date('M Y', strtotime($club['created_date']));
                             
-                            // Check student's status for this club
-                            $join_status = 'none';
-                            $join_button_text = 'Join Club';
-                            $join_button_class = 'bg-gradient-to-r from-[#F59E0B] to-[#EF4444] hover:from-[#EF4444] hover:to-[#F59E0B]';
-                            $join_button_disabled = false;
+                            // Get current member count
+                            $memberCountQuery = "SELECT COUNT(*) as member_count FROM CLUB_PARTICIPANT WHERE club_id = ?";
+                            $memberStmt = mysqli_prepare($connect, $memberCountQuery);
+                            mysqli_stmt_bind_param($memberStmt, 'i', $club_id);
+                            mysqli_stmt_execute($memberStmt);
+                            $memberResult = mysqli_stmt_get_result($memberStmt);
+                            $memberCount = mysqli_fetch_assoc($memberResult)['member_count'];
                             
-                            if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'student') {
-                                $student_id = $_SESSION['user_id'];
-                                
-                                // Ensure CLUB_JOIN_REQUEST table exists
-                                $create_table_query = "CREATE TABLE IF NOT EXISTS CLUB_JOIN_REQUEST (
-                                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                                    student_id INT NOT NULL,
-                                    club_id INT NOT NULL,
-                                    status ENUM('pending','approved','rejected') DEFAULT 'pending',
-                                    requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                    responded_at DATETIME NULL,
-                                    UNIQUE KEY uniq_request (student_id, club_id)
-                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-                                mysqli_query($connect, $create_table_query);
-                                
-                                // Check if already a member
-                                $member_query = "SELECT * FROM CLUB_PARTICIPANT WHERE student_id = ? AND club_id = ?";
-                                $member_stmt = mysqli_prepare($connect, $member_query);
-                                mysqli_stmt_bind_param($member_stmt, 'ii', $student_id, $club_id);
-                                mysqli_stmt_execute($member_stmt);
-                                $member_result = mysqli_stmt_get_result($member_stmt);
-                                
-                                if (mysqli_num_rows($member_result) > 0) {
-                                    $join_status = 'member';
-                                    $join_button_text = 'Member';
-                                    $join_button_class = 'bg-gray-400 cursor-not-allowed';
-                                    $join_button_disabled = true;
-                                } else {
-                                    // Check if there's a pending request
-                                    $request_query = "SELECT * FROM CLUB_JOIN_REQUEST WHERE student_id = ? AND club_id = ? AND status = 'pending'";
-                                    $request_stmt = mysqli_prepare($connect, $request_query);
-                                    mysqli_stmt_bind_param($request_stmt, 'ii', $student_id, $club_id);
-                                    mysqli_stmt_execute($request_stmt);
-                                    $request_result = mysqli_stmt_get_result($request_stmt);
-                                    
-                                    if (mysqli_num_rows($request_result) > 0) {
-                                        $join_status = 'pending';
-                                        $join_button_text = 'Pending Approval';
-                                        $join_button_class = 'bg-yellow-500 cursor-not-allowed';
-                                        $join_button_disabled = true;
-                                    }
-                                }
-                            }
+                            // Check if club is at capacity
+                            $isAtCapacity = $club['member_limit'] !== null && $memberCount >= $club['member_limit'];
+                            
+                            // Students can view activities for any club
+                            // Clubbers add students to clubs manually
                             
                             // Handle logo - convert BLOB to base64 if exists
                             $logo_src = '';
@@ -165,11 +136,38 @@ include "header.php"
                                         <?= $club_name ?>
                                     </h3>
                                     
-                                    <div class="flex items-center text-[#64748B] mb-4">
+                                    <div class="flex items-center text-[#64748B] mb-3">
                                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
                                         </svg>
                                         <span class="text-sm">Est. <?= $created_date ?></span>
+                                    </div>
+                                    
+                                    <!-- Member Information -->
+                                    <div class="mb-4 space-y-2">
+                                        <div class="flex items-center text-[#64748B]">
+                                            <i class="fas fa-users w-4 h-4 mr-2"></i>
+                                            <span class="text-sm"><?= $memberCount ?> member<?= $memberCount !== 1 ? 's' : '' ?></span>
+                                        </div>
+                                        
+                                        <?php if ($club['member_limit'] !== null): ?>
+                                            <div class="flex items-center <?= $isAtCapacity ? 'text-red-600' : 'text-green-600' ?>">
+                                                <i class="fas <?= $isAtCapacity ? 'fa-exclamation-triangle' : 'fa-user-plus' ?> w-4 h-4 mr-2"></i>
+                                                <span class="text-sm font-medium">
+                                                    <?= $memberCount ?>/<?= $club['member_limit'] ?>
+                                                    <?php if ($isAtCapacity): ?>
+                                                        - Full
+                                                    <?php else: ?>
+                                                        (<?= $club['member_limit'] - $memberCount ?> spots left)
+                                                    <?php endif; ?>
+                                                </span>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="flex items-center text-gray-600">
+                                                <i class="fas fa-infinity w-4 h-4 mr-2"></i>
+                                                <span class="text-sm">Unlimited capacity</span>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                     
                                     <!-- Action Buttons -->
@@ -183,27 +181,14 @@ include "header.php"
                                             <div class="absolute inset-0 bg-white/20 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
                                         </button>
                                         
-                                        <!-- Join Club Button (only for students) -->
+                                        <!-- View Activities Button (only for students) -->
                                         <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'student'): ?>
-                                            <?php if ($join_status === 'none'): ?>
-                                                <form method="POST" action="join_club.php" class="w-full">
-                                                    <input type="hidden" name="club_id" value="<?= $club_id ?>">
-                                                    <button 
-                                                        type="submit"
-                                                        class="w-full <?= $join_button_class ?> text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group/btn"
-                                                    >
-                                                        <span class="relative z-10"><?= $join_button_text ?></span>
-                                                        <div class="absolute inset-0 bg-white/20 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
-                                                    </button>
-                                                </form>
-                                            <?php else: ?>
-                                                <button 
-                                                    disabled
-                                                    class="w-full <?= $join_button_class ?> text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg relative overflow-hidden"
-                                                >
-                                                    <span class="relative z-10"><?= $join_button_text ?></span>
-                                                </button>
-                                            <?php endif; ?>
+                                            <a href="club.php?id=<?= $club_id ?>" 
+                                               class="w-full bg-gradient-to-r from-[#F59E0B] to-[#EF4444] hover:from-[#EF4444] hover:to-[#F59E0B] text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group/btn text-center block"
+                                            >
+                                                <span class="relative z-10">View Activities</span>
+                                                <div class="absolute inset-0 bg-white/100 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
+                                            </a>
                                         <?php endif; ?>
                                     </div>
                                 </div>
