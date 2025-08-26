@@ -41,10 +41,54 @@ if (session_status() === PHP_SESSION_NONE) {
         .profile-dropdown {
             z-index: 9999;
         }
+        
+        /* Notification animations */
+        .animate-slide-down {
+            animation: slideDown 0.5s ease-out forwards;
+        }
+        
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%) translateX(-50%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) translateX(-50%);
+                opacity: 1;
+            }
+        }
+        
+
     </style>
     
 </head>
 <body class="bg-gray-50 font-sans">
+    <?php 
+    // Include notification system
+    if (file_exists(__DIR__ . '/components/notification.php')) {
+        require_once __DIR__ . '/components/notification.php';
+        
+        // Check for logout messages
+        if (isset($_GET['logout']) && $_GET['logout'] === 'success') {
+            Notification::showLogout();
+        }
+        
+        // Check for login messages
+        if (isset($_GET['login']) && $_GET['login'] === 'success') {
+            Notification::showLogin();
+        }
+        
+        // Check for registration messages
+        if (isset($_GET['register']) && $_GET['register'] === 'success') {
+            Notification::showRegistration();
+        }
+        
+        // Render notifications
+        $notification = Notification::getInstance();
+        echo $notification->render();
+    }
+    ?>
+    
     <header class="bg-[#0F172A] text-white shadow-md sticky top-0 z-50">
         <div class="container mx-auto px-4 py-3">
             <div class="flex items-center justify-between">

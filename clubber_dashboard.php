@@ -8,11 +8,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'clubber') {
 }
 
 // Include database connection
-include "index.php";
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/components/breadcrumb.php';
+require_once __DIR__ . '/components/telegram_notification.php';
 
 // Get clubber's club information
 $clubber_id = $_SESSION['user_id'];
-$club_query = "SELECT c.*, cl.name as club_name FROM CLUBER c JOIN CLUB cl ON c.club_id = cl.id WHERE c.id = ?";
+$club_query = "SELECT c.*, cl.name as club_name, cl.logo as club_logo FROM CLUBER c JOIN CLUB cl ON c.club_id = cl.id WHERE c.id = ?";
 $stmt = mysqli_prepare($connect, $club_query);
 mysqli_stmt_bind_param($stmt, 'i', $clubber_id);
 mysqli_stmt_execute($stmt);
@@ -26,6 +28,7 @@ if (!$clubber_data) {
 
 $club_id = $clubber_data['club_id'];
 $club_name = $clubber_data['club_name'];
+$club_logo = $clubber_data['club_logo'];
 
 // Safety: drop any legacy triggers on CLUB_PARTICIPANT that can cause recursive updates (error 1442)
 function dropClubParticipantTriggersIfAny($connect) {
@@ -56,6 +59,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $start = str_replace('T', ' ', $_POST['start'] ?? '');
                 $end = str_replace('T', ' ', $_POST['end'] ?? '');
                 $merit_point = isset($_POST['merit_point']) ? (int)$_POST['merit_point'] : 0;
+
+                // Handle optional poster upload (image or PDF)
+                $uploadedPosterPath = null;
+                $uploadedPosterMime = null;
+                if (!empty($_FILES['activity_poster']['name'])) {
+                    $file = $_FILES['activity_poster'];
+                    if ($file['error'] === UPLOAD_ERR_OK) {
+                        $mimeType = mime_content_type($file['tmp_name']);
+                        $allowedImage = in_array($mimeType, ALLOWED_IMAGE_TYPES ?? []);
+                        $allowedDoc = ($mimeType === 'application/pdf');
+                        if (!$allowedImage && !$allowedDoc) {
+                            $message = 'Invalid poster type. Only images or PDF allowed';
+                            $message_type = 'error';
+                            break;
+                        }
+                        if ($file['size'] > MAX_FILE_SIZE) {
+                            $message = 'File too large. Max ' . formatFileSize(MAX_FILE_SIZE);
+                            $message_type = 'error';
+                            break;
+                        }
+                        $uploadDir = __DIR__ . '/uploads/activity_posters';
+                        if (!is_dir($uploadDir)) {
+                            @mkdir($uploadDir, 0775, true);
+                        }
+                        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                        $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '_', strtolower(pathinfo($file['name'], PATHINFO_FILENAME)));
+                        $fileName = date('Ymd_His') . '_' . $safeName . '_' . generateRandomString(6) . '.' . $ext;
+                        $dest = $uploadDir . '/' . $fileName;
+                        if (move_uploaded_file($file['tmp_name'], $dest)) {
+                            $uploadedPosterPath = realpath($dest) ?: $dest;
+                            $uploadedPosterMime = $mimeType;
+                        }
+                    } else {
+                        $message = 'Failed to upload poster (error code ' . $file['error'] . ')';
+                        $message_type = 'error';
+                        break;
+                    }
+                }
+
                 if ($activity_name === '' || $start === '' || $end === '') {
                     $message = 'Activity name, start and end are required';
                     $message_type = 'error';
@@ -64,6 +106,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = mysqli_prepare($connect, $query);
                     mysqli_stmt_bind_param($stmt, 'sssii', $activity_name, $start, $end, $merit_point, $club_id);
                     if (mysqli_stmt_execute($stmt)) {
+                        // Send Telegram notification
+                        try {
+                            $telegram = new TelegramNotification();
+
+                            if ($uploadedPosterPath && $uploadedPosterMime) {
+                                $telegramResponse = $telegram->sendActivityWithAttachment(
+                                    $activity_name,
+                                    $club_name,
+                                    $start,
+                                    $end,
+                                    $merit_point,
+                                    $uploadedPosterPath,
+                                    $uploadedPosterMime
+                                );
+                            } else {
+                                // Fallback: send with club logo as before (if any)
+                                $logoBase64 = null;
+                                if ($club_logo) {
+                                    $logoBase64 = base64_encode($club_logo);
+                                }
+                                $telegramResponse = $telegram->sendActivityNotification(
+                                    $activity_name,
+                                    $club_name,
+                                    $start,
+                                    $end,
+                                    $merit_point,
+                                    $logoBase64
+                                );
+                            }
+
+                            if (!($telegramResponse['ok'] ?? false)) {
+                                error_log("Telegram notification failed: " . json_encode($telegramResponse));
+                            }
+                        } catch (Exception $e) {
+                            error_log("Telegram notification error: " . $e->getMessage());
+                        }
+
                         $message = 'Activity added successfully';
                         $message_type = 'success';
                     } else {
@@ -136,20 +215,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $message = 'Student is already a member of this club';
                             $message_type = 'error';
                         } else {
-                            $query = "INSERT INTO CLUB_PARTICIPANT (student_id, club_id, position) VALUES (?, ?, ?)";
-                            $stmt = mysqli_prepare($connect, $query);
-                            mysqli_stmt_bind_param($stmt, 'iis', $student_id, $club_id, $position);
+                            // Check member limit
+                            $limit_query = "SELECT member_limit FROM CLUB WHERE id = ?";
+                            $stmt = mysqli_prepare($connect, $limit_query);
+                            mysqli_stmt_bind_param($stmt, 'i', $club_id);
+                            mysqli_stmt_execute($stmt);
+                            $limit_result = mysqli_stmt_get_result($stmt);
+                            $club_data = mysqli_fetch_assoc($limit_result);
                             
-                            if (mysqli_stmt_execute($stmt)) {
-                                $message = 'Member added successfully';
-                                $message_type = 'success';
-                            } else {
-                                $message = 'Error adding member: ' . mysqli_error($connect);
+                            if ($club_data['member_limit'] !== null && $member_count >= $club_data['member_limit']) {
+                                $message = 'Club has reached its member limit (' . $club_data['member_limit'] . ' members)';
                                 $message_type = 'error';
+                            } else {
+                                $query = "INSERT INTO CLUB_PARTICIPANT (student_id, club_id, position) VALUES (?, ?, ?)";
+                                $stmt = mysqli_prepare($connect, $query);
+                                mysqli_stmt_bind_param($stmt, 'iis', $student_id, $club_id, $position);
+                                
+                                if (mysqli_stmt_execute($stmt)) {
+                                    $message = 'Member added successfully';
+                                    $message_type = 'success';
+                                } else {
+                                    $message = 'Error adding member: ' . mysqli_error($connect);
+                                    $message_type = 'error';
+                                }
                             }
                         }
                     } else {
-                        $message = 'Student not found with this email';
+                        $message = 'Student not found with this email. Please check the email address or ask the student to register first.';
                         $message_type = 'error';
                     }
                 }
@@ -169,6 +261,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message_type = 'error';
                 }
                 break;
+                
+            case 'set_member_limit':
+                $member_limit = isset($_POST['member_limit']) ? (int)$_POST['member_limit'] : null;
+                
+                if ($member_limit !== null && $member_limit < 0) {
+                    $message = 'Member limit must be a positive number or empty for no limit';
+                    $message_type = 'error';
+                } else {
+                    $query = "UPDATE CLUB SET member_limit = ? WHERE id = ?";
+                    $stmt = mysqli_prepare($connect, $query);
+                    mysqli_stmt_bind_param($stmt, 'ii', $member_limit, $club_id);
+                    
+                    if (mysqli_stmt_execute($stmt)) {
+                        $message = 'Member limit updated successfully';
+                        $message_type = 'success';
+                    } else {
+                        $message = 'Error updating member limit: ' . mysqli_error($connect);
+                        $message_type = 'error';
+                    }
+                }
+                break;
         }
     }
 }
@@ -185,6 +298,14 @@ $members_result = mysqli_stmt_get_result($stmt);
 // Get member count
 $member_count = mysqli_num_rows($members_result);
 
+// Get current member limit
+$limit_query = "SELECT member_limit FROM CLUB WHERE id = ?";
+$stmt = mysqli_prepare($connect, $limit_query);
+mysqli_stmt_bind_param($stmt, 'i', $club_id);
+mysqli_stmt_execute($stmt);
+$limit_result = mysqli_stmt_get_result($stmt);
+$current_limit = mysqli_fetch_assoc($limit_result)['member_limit'];
+
 // Activities for this club
 $activities_query = "SELECT id, `name`, `start`, `end`, merit_point FROM CLUB_ACTIVITY WHERE club_id = ? ORDER BY `start` DESC";
 $stmt = mysqli_prepare($connect, $activities_query);
@@ -193,26 +314,9 @@ mysqli_stmt_execute($stmt);
 $activities_result = mysqli_stmt_get_result($stmt);
 $total_activities = $activities_result ? mysqli_num_rows($activities_result) : 0;
 
-// Ensure join request table exists and fetch pending count for UI badges
-mysqli_query($connect, "CREATE TABLE IF NOT EXISTS CLUB_JOIN_REQUEST (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    club_id INT NOT NULL,
-    status ENUM('pending','approved','rejected') DEFAULT 'pending',
-    requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    responded_at DATETIME NULL,
-    UNIQUE KEY uniq_request (student_id, club_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-$pending_requests = 0;
-$pc = mysqli_prepare($connect, "SELECT COUNT(*) AS cnt FROM CLUB_JOIN_REQUEST WHERE club_id = ? AND status = 'pending'");
-mysqli_stmt_bind_param($pc, 'i', $club_id);
-mysqli_stmt_execute($pc);
-$pcRes = mysqli_stmt_get_result($pc);
-if ($pcRes) {
-    $row = mysqli_fetch_assoc($pcRes);
-    $pending_requests = (int)($row['cnt'] ?? 0);
-}
+
+
 ?>
 
 <!DOCTYPE html>
@@ -227,7 +331,7 @@ if ($pcRes) {
 </head>
 <body class="bg-gray-100">
     <div class="flex h-screen">
-        <!-- Sidebar -->
+        <!-- Formal Sidebar -->
         <div class="w-64 bg-[#0F172A] text-white shadow-lg">
             <div class="p-6 h-full flex flex-col">
                 <!-- Logo Section -->
@@ -259,11 +363,6 @@ if ($pcRes) {
                             <i class="fas fa-users text-gray-400"></i>
                             <span class="font-medium">Manage Members</span>
                         </span>
-                        <?php if ($pending_requests > 0): ?>
-                        <span class="ml-3 inline-flex items-center justify-center text-xs font-semibold rounded-full bg-amber-500 text-white px-2 py-0.5 min-w-[1.25rem]">
-                            <?= $pending_requests ?>
-                        </span>
-                        <?php endif; ?>
                     </a>
                     
                     <a href="#hierarchy" onclick="showSection('hierarchy')" 
@@ -283,43 +382,100 @@ if ($pcRes) {
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="flex-1 overflow-auto">
-            <!-- Message Display -->
-            <?php if ($message): ?>
-                <div id="flash-message" class="fixed top-4 right-4 z-50">
-                    <div class="px-6 py-4 rounded-lg shadow-lg <?= $message_type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white' ?>">
-                        <?= htmlspecialchars($message) ?>
-                    </div>
-                </div>
+                                 <!-- Main Content -->
+         <div class="flex-1 overflow-auto">
+             <?php 
+             // Include notification system
+             if (file_exists(__DIR__ . '/components/notification.php')) {
+                 require_once __DIR__ . '/components/notification.php';
+                 
+                 // Check for login messages
+                 if (isset($_GET['login']) && $_GET['login'] === 'success') {
+                     Notification::showLogin();
+                 }
+                 
+                 // Render notifications
+                 $notification = Notification::getInstance();
+                 echo $notification->render();
+             }
+             
+             if ($message): ?>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function(){
+                        Swal.fire({
+                            icon: '<?= $message_type === 'success' ? 'success' : 'error' ?>',
+                            title: '<?= $message_type === 'success' ? 'Success' : 'Error' ?>',
+                            text: <?= json_encode($message) ?>,
+                            showConfirmButton: false,
+                            timer: 2200
+                        });
+                    });
+                </script>
             <?php endif; ?>
 
             <!-- Dashboard Section -->
             <div id="dashboard" class="section p-8">
-                <h2 class="text-3xl font-bold text-gray-800 mb-8">Club Dashboard</h2>
+                <?php 
+                $breadcrumb = Breadcrumb::forClubberDashboard($club_name);
+                echo $breadcrumb->render();
+                ?>
+                <div class="mb-8 text-center">
+                    <h2 class="text-4xl font-extrabold text-[#0F172A]">Dashboard Overview</h2>
+                    <div class="w-24 h-1 bg-gradient-to-r from-[#F59E0B] to-[#EF4444] mx-auto mt-3 rounded"></div>
+                    <p class="text-gray-600 mt-4 text-lg">Welcome back! Here's what's happening with <?= htmlspecialchars($club_name) ?></p>
+                </div>
                 
                 <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
                         <div class="flex items-center">
-                            <div class="p-3 bg-blue-500 rounded-xl shadow-lg">
+                            <div class="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
                                 <i class="fas fa-users text-white text-xl"></i>
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm text-gray-600 font-medium">Total Members</p>
                                 <p class="text-3xl font-bold text-gray-800"><?= $member_count ?></p>
+                                <p class="text-xs text-blue-600 font-medium">
+                                    <?php if ($current_limit !== null): ?>
+                                        <?= $member_count ?>/<?= $current_limit ?> members
+                                    <?php else: ?>
+                                        No limit set
+                                    <?php endif; ?>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
+                                <i class="fas fa-calendar-alt text-white text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600 font-medium">Total Activities</p>
+                                <p class="text-3xl font-bold text-gray-800"><?= $total_activities ?></p>
+                                <p class="text-xs text-green-600 font-medium">Created</p>
                             </div>
                         </div>
                     </div>
                     
                     <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500">
                         <div class="flex items-center">
-                            <div class="p-3 bg-purple-500 rounded-xl shadow-lg">
-                                <i class="fas fa-star text-white text-xl"></i>
+                            <div class="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                                <i class="fas fa-user-plus text-white text-xl"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm text-gray-600 font-medium">Club Status</p>
-                                <p class="text-3xl font-bold text-gray-800">Active</p>
+                                <p class="text-sm text-gray-600 font-medium">Member Limit</p>
+                                <p class="text-3xl font-bold text-gray-800">
+                                    <?= $current_limit !== null ? $current_limit : '∞' ?>
+                                </p>
+                                <p class="text-xs text-purple-600 font-medium">
+                                    <?php if ($current_limit !== null): ?>
+                                        <?= $current_limit - $member_count ?> spots left
+                                    <?php else: ?>
+                                        Unlimited capacity
+                                    <?php endif; ?>
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -328,7 +484,7 @@ if ($pcRes) {
                 <!-- Quick Actions -->
                 <div class="bg-white rounded-xl shadow-md p-6">
                     <h3 class="text-xl font-semibold text-gray-800 mb-6">Quick Actions</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <button onclick="showSection('members')" class="flex items-center space-x-4 p-4 bg-blue-50 rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors duration-200">
                             <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
                             <div class="flex-1 text-left">
@@ -343,6 +499,13 @@ if ($pcRes) {
                                 <p class="text-sm text-gray-500">Organize member positions and roles</p>
                             </div>
                         </button>
+                        <button onclick="openSetMemberLimitModal()" class="flex items-center space-x-4 p-4 bg-purple-50 rounded-xl border border-purple-100 hover:bg-purple-100 transition-colors duration-200">
+                            <div class="w-3 h-3 bg-purple-500 rounded-full"></div>
+                            <div class="flex-1 text-left">
+                                <p class="text-gray-800 font-medium">Set Member Limit</p>
+                                <p class="text-sm text-gray-500">Control club capacity</p>
+                            </div>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -351,87 +514,53 @@ if ($pcRes) {
 
             <!-- Members Management Section -->
             <div id="members" class="section p-8 hidden">
+                <?php 
+                $breadcrumb = new Breadcrumb();
+                $breadcrumb->addItem('Club Management', '#', 'fas fa-users');
+                $breadcrumb->addItem($club_name, '#dashboard', 'fas fa-tachometer-alt');
+                $breadcrumb->addItem('Members', null, 'fas fa-users');
+                echo $breadcrumb->render();
+                ?>
+                <div class="mb-8 text-center">
+                    <h2 class="text-4xl font-extrabold text-[#0F172A]">Manage Club Members</h2>
+                    <div class="w-24 h-1 bg-gradient-to-r from-[#F59E0B] to-[#EF4444] mx-auto mt-3 rounded"></div>
+                    <p class="text-gray-600 mt-4 text-lg">Add members and set positions for <?= htmlspecialchars($club_name) ?></p>
+                </div>
+                
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-                    <div>
-                        <h2 class="text-3xl font-bold text-gray-800">Manage Club Members</h2>
-                        <p class="text-gray-500 mt-1">Add members, handle join requests, and set positions</p>
+                    <div class="text-center md:text-left">
+                        <div class="inline-flex items-center space-x-2 px-4 py-2 bg-blue-50 rounded-full border border-blue-200">
+                            <i class="fas fa-users text-blue-600"></i>
+                            <span class="text-blue-700 font-medium">
+                                <?= $member_count ?> member<?= $member_count !== 1 ? 's' : '' ?>
+                                <?php if ($current_limit !== null): ?>
+                                    / <?= $current_limit ?> limit
+                                <?php endif; ?>
+                            </span>
+                        </div>
+                        <?php if ($current_limit !== null && $member_count >= $current_limit): ?>
+                            <div class="inline-flex items-center space-x-2 px-4 py-2 bg-red-50 rounded-full border border-red-200 mt-2">
+                                <i class="fas fa-exclamation-triangle text-red-600"></i>
+                                <span class="text-red-700 font-medium">Club is full!</span>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-amber-50 text-amber-700 border border-amber-200">
-                            <i class="fas fa-inbox mr-2"></i><?= $pending_requests ?> Pending
-                        </span>
-                        <button onclick="openAddMemberModal()" class="bg-gradient-to-r from-amber-500 to-rose-500 text-white px-6 py-3 rounded-lg hover:from-amber-600 hover:to-rose-600 transition-colors duration-200 shadow">
+                        <button onclick="openSetMemberLimitModal()" class="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-colors duration-200 shadow">
+                            <i class="fas fa-cog mr-2"></i>Set Limit
+                        </button>
+                        <button onclick="openAddMemberModal()" class="bg-gradient-to-r from-[#F59E0B] to-[#EF4444] text-white px-6 py-3 rounded-lg hover:from-[#EF4444] hover:to-[#F59E0B] transition-colors duration-200 shadow">
                             <i class="fas fa-plus mr-2"></i>Add New Member
                         </button>
                     </div>
                 </div>
 
-                <!-- Pending Join Requests -->
-                <div class="bg-white rounded-2xl shadow-md mb-8 border border-gray-100">
-                    <div class="p-6 border-b flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <span class="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><i class="fas fa-inbox"></i></span>
-                            <h3 class="text-lg font-semibold text-gray-800">Pending Join Requests</h3>
-                        </div>
-                        <span class="px-2.5 py-1 text-xs rounded-full bg-gray-100 text-gray-700 font-medium"><?= $pending_requests ?></span>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50/80 backdrop-blur">
-                                <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Student</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Requested At</th>
-                                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <?php
-                                mysqli_query($connect, "CREATE TABLE IF NOT EXISTS CLUB_JOIN_REQUEST (id INT AUTO_INCREMENT PRIMARY KEY, student_id INT NOT NULL, club_id INT NOT NULL, status ENUM('pending','approved','rejected') DEFAULT 'pending', requested_at DATETIME DEFAULT CURRENT_TIMESTAMP, responded_at DATETIME NULL, UNIQUE KEY uniq_request (student_id, club_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                                $rq = mysqli_prepare($connect, "SELECT r.id, r.requested_at, s.name, s.email FROM CLUB_JOIN_REQUEST r JOIN STUDENT s ON s.id = r.student_id WHERE r.club_id = ? AND r.status = 'pending' ORDER BY r.requested_at ASC");
-                                mysqli_stmt_bind_param($rq, 'i', $club_id);
-                                mysqli_stmt_execute($rq);
-                                $rqRes = mysqli_stmt_get_result($rq);
-                                if ($rqRes && mysqli_num_rows($rqRes) > 0):
-                                    while ($req = mysqli_fetch_assoc($rqRes)):
-                                ?>
-                                <tr>
-                                    <td class="px-6 py-4">
-                                        <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($req['name'] ?: $req['email']) ?></div>
-                                        <div class="text-xs text-gray-500"><?= htmlspecialchars($req['email']) ?></div>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-600"><?= date('Y-m-d H:i', strtotime($req['requested_at'])) ?></td>
-                                    <td class="px-6 py-4 text-right space-x-2">
-                                        <form action="approve_join_request.php" method="POST" class="inline swal-confirm" data-title="Approve this request?" data-confirm="Approve">
-                                            <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
-                                            <input type="hidden" name="action" value="approve">
-                                            <button class="px-3 py-1.5 rounded-md bg-green-50 text-green-700 hover:bg-green-100 text-sm shadow-sm">Approve</button>
-                                        </form>
-                                        <form action="approve_join_request.php" method="POST" class="inline swal-confirm" data-title="Reject this request?" data-confirm="Reject">
-                                            <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
-                                            <input type="hidden" name="action" value="reject">
-                                            <button class="px-3 py-1.5 rounded-md bg-red-50 text-red-700 hover:bg-red-100 text-sm shadow-sm">Reject</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                <?php endwhile; else: ?>
-                                <tr>
-                                    <td colspan="3" class="px-6 py-10 text-center text-gray-500">
-                                        <div class="flex flex-col items-center gap-2">
-                                            <i class="fas fa-inbox text-3xl text-gray-300"></i>
-                                            <p>No pending requests</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
-                <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full">
-                            <thead class="bg-gray-50/80 backdrop-blur">
+                            <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Student Name</th>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
@@ -492,7 +621,18 @@ if ($pcRes) {
 
             <!-- Hierarchy Section -->
             <div id="hierarchy" class="section p-8 hidden">
-                <h2 class="text-3xl font-bold text-gray-800 mb-8">Club Hierarchy</h2>
+                <?php 
+                $breadcrumb = new Breadcrumb();
+                $breadcrumb->addItem('Club Management', '#', 'fas fa-users');
+                $breadcrumb->addItem($club_name, '#dashboard', 'fas fa-tachometer-alt');
+                $breadcrumb->addItem('Hierarchy', null, 'fas fa-sitemap');
+                echo $breadcrumb->render();
+                ?>
+                <div class="mb-8 text-center">
+                    <h2 class="text-4xl font-extrabold text-[#0F172A]">Club Hierarchy</h2>
+                    <div class="w-24 h-1 bg-gradient-to-r from-[#F59E0B] to-[#EF4444] mx-auto mt-3 rounded"></div>
+                    <p class="text-gray-600 mt-4 text-lg">Organize member positions and roles</p>
+                </div>
                 
                 <div class="bg-white rounded-xl shadow-md p-6">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4">Current Club Structure</h3>
@@ -539,9 +679,22 @@ if ($pcRes) {
 
             <!-- Activities Section -->
             <div id="activities" class="section p-8 hidden">
+                <?php 
+                $breadcrumb = new Breadcrumb();
+                $breadcrumb->addItem('Club Management', '#', 'fas fa-users');
+                $breadcrumb->addItem($club_name, '#dashboard', 'fas fa-tachometer-alt');
+                $breadcrumb->addItem('Activities', null, 'fas fa-calendar-alt');
+                echo $breadcrumb->render();
+                ?>
+                <div class="mb-8 text-center">
+                    <h2 class="text-4xl font-extrabold text-[#0F172A]">Activities</h2>
+                    <div class="w-24 h-1 bg-gradient-to-r from-[#F59E0B] to-[#EF4444] mx-auto mt-3 rounded"></div>
+                    <p class="text-gray-600 mt-4 text-lg">Manage club activities and events</p>
+                </div>
+                
                 <div class="flex justify-between items-center mb-8">
-                    <h2 class="text-3xl font-bold text-gray-800">Activities</h2>
-                    <button onclick="openAddActivityModal()" class="bg-[#F59E0B] text-white px-6 py-3 rounded-lg hover:bg-amber-600 transition-colors duration-200">
+                    <p class="text-gray-600 text-lg">Create and manage activities for your club</p>
+                    <button onclick="openAddActivityModal()" class="bg-gradient-to-r from-[#F59E0B] to-[#EF4444] text-white px-6 py-3 rounded-lg hover:from-[#EF4444] hover:to-[#F59E0B] transition-colors duration-200 shadow">
                         <i class="fas fa-plus mr-2"></i>Add Activity
                     </button>
                 </div>
@@ -612,23 +765,20 @@ if ($pcRes) {
     <div id="addMemberModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50" style="display: none;" onclick="closeAddMemberModal()">
         <div class="flex items-center justify-center min-h-screen p-4" onclick="event.stopPropagation()">
             <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
-                <div class="p-6">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Add New Member</h3>
-                                         <form method="POST" onsubmit="setTimeout(closeAddMemberModal, 100);">
-                         <input type="hidden" name="action" value="add_member">
-                        
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Student Email</label>
-                            <input type="email" name="student_email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F59E0B] focus:border-transparent" placeholder="Enter student email">
-                        </div>
-                        
-                        <div class="mb-6">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                            <input type="text" name="position" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F59E0B] focus:border-transparent" placeholder="e.g., Member, Secretary, Treasurer">
-                        </div>
+                                 <div class="p-6">
+                     <h3 class="text-xl font-semibold text-gray-800 mb-4">Add New Member</h3>
+                     <p class="text-sm text-gray-600 mb-4">Enter the student's email to add them to your club. You can set their position later using the "Set Position" button.</p>
+                                                              <form id="addMemberForm" method="POST" onsubmit="return validateAndSubmitMember(event);">
+                          <input type="hidden" name="action" value="add_member">
+                         
+                         <div class="mb-6">
+                             <label class="block text-sm font-medium text-gray-700 mb-2">Student Email</label>
+                             <input type="email" name="student_email" id="student_email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F59E0B] focus:border-transparent" placeholder="Enter student email">
+                             <div id="email_validation" class="text-sm mt-1 hidden"></div>
+                         </div>
                         
                         <div class="flex space-x-3">
-                            <button type="submit" class="flex-1 bg-[#F59E0B] text-white px-4 py-2 rounded-lg hover:bg-amber-600 transition-colors duration-200">
+                            <button type="submit" id="addMemberBtn" class="flex-1 bg-[#F59E0B] text-white px-4 py-2 rounded-lg hover:bg-amber-600 transition-colors duration-200">
                                 Add Member
                             </button>
                             <button type="button" onclick="closeAddMemberModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors duration-200">
@@ -676,7 +826,7 @@ if ($pcRes) {
             <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
                 <div class="p-6">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4">Add Activity</h3>
-                    <form method="POST">
+                    <form method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="action" value="add_activity">
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
@@ -696,9 +846,37 @@ if ($pcRes) {
                             <label class="block text-sm font-medium text-gray-700 mb-2">Merit Points</label>
                             <input type="number" name="merit_point" value="0" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F59E0B] focus:border-transparent">
                         </div>
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Poster (image or PDF)</label>
+                            <input type="file" name="activity_poster" accept="image/*,application/pdf" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F59E0B] focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">Max size: <?= formatFileSize(MAX_FILE_SIZE) ?>. Allowed: images or PDF.</p>
+                        </div>
                         <div class="flex space-x-3">
                             <button type="submit" class="flex-1 bg-[#F59E0B] text-white px-4 py-2 rounded-lg hover:bg-amber-600 transition-colors duration-200">Add</button>
                             <button type="button" onclick="closeAddActivityModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors duration-200">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set Member Limit Modal -->
+    <div id="setMemberLimitModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4" onclick="event.stopPropagation()">
+            <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
+                <div class="p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Set Member Limit</h3>
+                    <form method="POST">
+                        <input type="hidden" name="action" value="set_member_limit">
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Member Limit</label>
+                            <input type="number" name="member_limit" value="<?= $current_limit ?? '' ?>" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F59E0B] focus:border-transparent" placeholder="Leave empty for no limit">
+                            <p class="text-sm text-gray-500 mt-2">Set a limit on how many members can join this club. Leave empty for unlimited members.</p>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button type="submit" class="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-colors duration-200">Update Limit</button>
+                            <button type="button" onclick="closeSetMemberLimitModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors duration-200">Cancel</button>
                         </div>
                     </form>
                 </div>
@@ -732,6 +910,25 @@ if ($pcRes) {
                 modal.style.display = 'block';
                 modal.style.visibility = 'visible';
                 modal.style.opacity = '1';
+                
+                // Reset form and validation messages
+                const form = document.getElementById('addMemberForm');
+                if (form) {
+                    form.reset();
+                }
+                
+                const emailValidation = document.getElementById('email_validation');
+                if (emailValidation) {
+                    emailValidation.innerHTML = '';
+                    emailValidation.classList.add('hidden');
+                }
+                
+                // Reset button state
+                const submitBtn = document.getElementById('addMemberBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Add Member';
+                }
             } else {
                 console.error('Modal not found!');
             }
@@ -766,6 +963,175 @@ if ($pcRes) {
             document.getElementById('setHierarchyModal').classList.add('hidden');
         }
 
+        function openSetMemberLimitModal() {
+            document.getElementById('setMemberLimitModal').classList.remove('hidden');
+        }
+
+        function closeSetMemberLimitModal() {
+            document.getElementById('setMemberLimitModal').classList.add('hidden');
+        }
+
+                 // Email validation and member submission
+         async function validateAndSubmitMember(event) {
+             event.preventDefault();
+             
+             const email = document.getElementById('student_email').value.trim();
+             
+             if (!email) {
+                 Swal.fire({
+                     title: 'Validation Error',
+                     text: 'Please enter a student email',
+                     icon: 'error',
+                     confirmButtonColor: '#F59E0B'
+                 });
+                 return false;
+             }
+
+            // Show loading state
+            const submitBtn = document.getElementById('addMemberBtn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Checking...';
+            submitBtn.disabled = true;
+
+            try {
+                // Check if student exists
+                const response = await fetch('check_student_exists.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        email: email
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.exists) {
+                    // Student exists, submit the form
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+                    
+                                         // Create and submit form data
+                     const formData = new FormData();
+                     formData.append('action', 'add_member');
+                     formData.append('student_email', email);
+                     formData.append('position', 'Member'); // Default position
+                    
+                    const addResponse = await fetch(window.location.href, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (addResponse.ok) {
+                        // Close modal and show success message
+                        closeAddMemberModal();
+                        Swal.fire({
+                            title: 'Success!',
+                            text: 'Member added successfully',
+                            icon: 'success',
+                            confirmButtonColor: '#F59E0B'
+                        }).then(() => {
+                            // Reload the page to show updated member list
+                            window.location.reload();
+                        });
+                    } else {
+                        throw new Error('Failed to add member');
+                    }
+                } else {
+                    // Student doesn't exist
+                    Swal.fire({
+                        title: 'Student Not Found',
+                        text: 'The email address you entered does not exist in our system. Please check the email or ask the student to register first.',
+                        icon: 'warning',
+                        confirmButtonColor: '#F59E0B',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error',
+                    text: 'An error occurred while processing your request. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: '#F59E0B'
+                });
+            } finally {
+                // Reset button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+            
+            return false;
+        }
+
+        // Real-time email validation
+        function validateEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Add real-time email validation
+        document.addEventListener('DOMContentLoaded', function() {
+            const emailInput = document.getElementById('student_email');
+            const emailValidation = document.getElementById('email_validation');
+            
+            if (emailInput && emailValidation) {
+                let validationTimeout;
+                
+                emailInput.addEventListener('input', function() {
+                    clearTimeout(validationTimeout);
+                    const email = this.value.trim();
+                    
+                    // Clear previous validation message
+                    emailValidation.innerHTML = '';
+                    emailValidation.classList.add('hidden');
+                    
+                    if (email && !validateEmail(email)) {
+                        emailValidation.innerHTML = '<span class="text-red-600">Please enter a valid email address</span>';
+                        emailValidation.classList.remove('hidden');
+                    }
+                });
+                
+                emailInput.addEventListener('blur', function() {
+                    const email = this.value.trim();
+                    
+                    if (email && validateEmail(email)) {
+                        // Show loading state
+                        emailValidation.innerHTML = '<span class="text-blue-600"><i class="fas fa-spinner fa-spin mr-1"></i>Checking email...</span>';
+                        emailValidation.classList.remove('hidden');
+                        
+                                                 // Check if student exists
+                         validationTimeout = setTimeout(async () => {
+                             try {
+                                 const response = await fetch('check_student_exists.php', {
+                                     method: 'POST',
+                                     headers: {
+                                         'Content-Type': 'application/x-www-form-urlencoded',
+                                     },
+                                     body: new URLSearchParams({
+                                         email: email
+                                     })
+                                 });
+                                
+                                                                 const data = await response.json();
+                                 
+                                 if (data.exists) {
+                                     emailValidation.innerHTML = '<span class="text-green-600"><i class="fas fa-check mr-1"></i>Student found: ' + data.student.name + '</span>';
+                                     emailValidation.classList.remove('hidden');
+                                 } else {
+                                     emailValidation.innerHTML = '<span class="text-red-600"><i class="fas fa-exclamation-triangle mr-1"></i>Student not found with this email</span>';
+                                     emailValidation.classList.remove('hidden');
+                                 }
+                            } catch (error) {
+                                emailValidation.innerHTML = '<span class="text-gray-600"><i class="fas fa-info-circle mr-1"></i>Unable to verify email</span>';
+                                emailValidation.classList.remove('hidden');
+                            }
+                        }, 500);
+                    }
+                });
+            }
+        });
+
         // Auto-hide flash message (only)
         setTimeout(() => {
             const flash = document.getElementById('flash-message');
@@ -780,6 +1146,7 @@ if ($pcRes) {
                 closeAddMemberModal();
                 closeSetHierarchyModal();
                 closeAddActivityModal();
+                closeSetMemberLimitModal();
             }
         });
 
@@ -815,6 +1182,22 @@ if ($pcRes) {
     <style>
         .active-section {
             background-color: #1E293B;
+        }
+        
+        /* Notification animations */
+        .animate-slide-down {
+            animation: slideDown 0.5s ease-out forwards;
+        }
+        
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%) translateX(-50%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) translateX(-50%);
+                opacity: 1;
+            }
         }
         
         .section {

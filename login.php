@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['user_type'] = 'admin';
-            header("Location: admin_dashboard.php");
+                            header("Location: admin_dashboard.php?login=success");
             exit;
         }
 
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_type'] = 'clubber';
             $_SESSION['club_id'] = $user['club_id'];
             $_SESSION['club_name'] = $user['club_name'];
-            header("Location: clubber_dashboard.php");
+                            header("Location: clubber_dashboard.php?login=success");
             exit;
         }
 
@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['username'] = $user['email'];
             $_SESSION['user_type'] = 'student';
             $_SESSION['student_name'] = $user['name'];
-            header("Location: student_dashboard.php");
+                            header("Location: student_dashboard.php?login=success");
             exit;
         }
 
@@ -189,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                class="w-full px-4 py-3 border rounded-full focus:ring-2 focus:ring-green-600">
 
         <div class="text-right">
-          <a href="#" class="text-sm text-green-600 hover:underline">Forgot your password?</a>
+                              <a href="#" class="text-sm text-green-600 hover:underline">Need help?</a>
         </div>
 
         <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-full">

@@ -3,12 +3,13 @@ session_start();
 
 // Check if user is logged in and is admin
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'admin') {
-	header('Location: login.php');
-	exit;
+    header('Location: login.php');
+    exit;
 }
 
 // Include database connection
-include "index.php";
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/components/breadcrumb.php';
 
 // Handle form submissions
 $message = '';
@@ -141,6 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					}
 				}
 				break;
+				
+
 		}
 	}
 }
@@ -159,6 +162,51 @@ $merit_query = "SELECT cp.student_id, cp.merit_point, cp.position, s.name as stu
                 JOIN CLUB c ON cp.club_id = c.id 
                 ORDER BY cp.merit_point DESC";
 $merit_result = mysqli_query($connect, $merit_query);
+
+// Get recent activities from existing tables
+$recent_activities = [];
+
+// Get recent club creations
+$club_activities = mysqli_query($connect, "SELECT name, created_date FROM CLUB ORDER BY created_date DESC LIMIT 3");
+while ($club = mysqli_fetch_assoc($club_activities)) {
+    $recent_activities[] = [
+        'type' => 'club_created',
+        'title' => 'New club "' . $club['name'] . '" created',
+        'subtitle' => 'Category: General',
+        'time' => $club['created_date'],
+        'color' => 'blue'
+    ];
+}
+
+// Get recent clubber additions
+$clubber_activities = mysqli_query($connect, "SELECT c.username, cl.name as club_name, c.id FROM CLUBER c JOIN CLUB cl ON c.club_id = cl.id ORDER BY c.id DESC LIMIT 3");
+while ($clubber = mysqli_fetch_assoc($clubber_activities)) {
+    $recent_activities[] = [
+        'type' => 'clubber_added',
+        'title' => 'New clubber registered for ' . $clubber['club_name'],
+        'subtitle' => 'Username: ' . $clubber['username'],
+        'time' => date('Y-m-d H:i:s'), // Since CLUBER table doesn't have created_date, using current time
+        'color' => 'green'
+    ];
+}
+
+// Get recent student merit updates
+$merit_activities = mysqli_query($connect, "SELECT s.name, cp.merit_point, c.name as club_name FROM CLUB_PARTICIPANT cp JOIN STUDENT s ON cp.student_id = s.id JOIN CLUB c ON cp.club_id = c.id ORDER BY cp.merit_point DESC LIMIT 3");
+while ($merit = mysqli_fetch_assoc($merit_activities)) {
+    $recent_activities[] = [
+        'type' => 'merit_updated',
+        'title' => 'Student merit updated for ' . $merit['name'],
+        'subtitle' => 'Merit points: ' . $merit['merit_point'] . ' (' . $merit['club_name'] . ')',
+        'time' => date('Y-m-d H:i:s'), // Since no timestamp, using current time
+        'color' => 'purple'
+    ];
+}
+
+// Sort activities by time (most recent first) and limit to 5
+usort($recent_activities, function($a, $b) {
+    return strtotime($b['time']) - strtotime($a['time']);
+});
+$recent_activities = array_slice($recent_activities, 0, 5);
 ?>
 
 <!DOCTYPE html>
@@ -211,6 +259,8 @@ $merit_result = mysqli_query($connect, $merit_query);
 						<i class="fas fa-star text-gray-400"></i>
 						<span class="font-medium">Student Merit</span>
 					</a>
+					
+
 				</nav>
 				
 				<!-- Logout Button -->
@@ -223,9 +273,24 @@ $merit_result = mysqli_query($connect, $merit_query);
 			</div>
 		</div>
 
-		<!-- Main Content -->
-		<div class="flex-1 overflow-auto">
-			<?php if ($message): ?>
+		                 <!-- Main Content -->
+         <div class="flex-1 overflow-auto">
+             <?php 
+             // Include notification system
+             if (file_exists(__DIR__ . '/components/notification.php')) {
+                 require_once __DIR__ . '/components/notification.php';
+                 
+                 // Check for login messages
+                 if (isset($_GET['login']) && $_GET['login'] === 'success') {
+                     Notification::showLogin();
+                 }
+                 
+                 // Render notifications
+                 $notification = Notification::getInstance();
+                 echo $notification->render();
+             }
+             
+             if ($message): ?>
 				<script>
 					document.addEventListener('DOMContentLoaded', function(){
 						Swal.fire({
@@ -241,6 +306,10 @@ $merit_result = mysqli_query($connect, $merit_query);
 
 			<!-- Dashboard Section -->
 			<div id="dashboard" class="section p-8">
+				<?php 
+				$breadcrumb = Breadcrumb::forAdminDashboard();
+				echo $breadcrumb->render();
+			 ?>
 				<div class="mb-8 text-center">
 					<h2 class="text-4xl font-extrabold text-[#0F172A]">Dashboard Overview</h2>
 					<div class="w-24 h-1 bg-gradient-to-r from-[#F59E0B] to-[#EF4444] mx-auto mt-3 rounded"></div>
@@ -308,36 +377,78 @@ $merit_result = mysqli_query($connect, $merit_query);
 						<button class="text-sm text-blue-600 hover:text-blue-800 font-medium">View All</button>
 					</div>
 					<div class="space-y-4">
-						<div class="flex items-center space-x-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
-							<div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-							<div class="flex-1">
-								<p class="text-gray-800 font-medium">New clubber registered for Computer Science Club</p>
-								<p class="text-sm text-gray-500">Username: john_doe</p>
+						<?php if (!empty($recent_activities)): ?>
+							<?php foreach ($recent_activities as $activity): ?>
+								<?php 
+								$color_class = '';
+								$bg_class = '';
+								$border_class = '';
+								
+								switch ($activity['color']) {
+									case 'green':
+										$color_class = 'bg-green-500';
+										$bg_class = 'bg-gradient-to-r from-green-50 to-emerald-50';
+										$border_class = 'border-green-100';
+										break;
+									case 'blue':
+										$color_class = 'bg-blue-500';
+										$bg_class = 'bg-gradient-to-r from-blue-50 to-indigo-50';
+										$border_class = 'border-blue-100';
+										break;
+									case 'purple':
+										$color_class = 'bg-purple-500';
+										$bg_class = 'bg-gradient-to-r from-purple-50 to-violet-50';
+										$border_class = 'border-purple-100';
+										break;
+									default:
+										$color_class = 'bg-gray-500';
+										$bg_class = 'bg-gradient-to-r from-gray-50 to-gray-100';
+										$border_class = 'border-gray-100';
+								}
+								
+								// Calculate time ago
+								$time_ago = '';
+								$time_diff = time() - strtotime($activity['time']);
+								if ($time_diff < 60) {
+									$time_ago = 'Just now';
+								} elseif ($time_diff < 3600) {
+									$minutes = floor($time_diff / 60);
+									$time_ago = $minutes . ' minute' . ($minutes > 1 ? 's' : '') . ' ago';
+								} elseif ($time_diff < 86400) {
+									$hours = floor($time_diff / 3600);
+									$time_ago = $hours . ' hour' . ($hours > 1 ? 's' : '') . ' ago';
+								} else {
+									$days = floor($time_diff / 86400);
+									$time_ago = $days . ' day' . ($days > 1 ? 's' : '') . ' ago';
+								}
+								?>
+								<div class="flex items-center space-x-4 p-4 <?= $bg_class ?> rounded-xl border <?= $border_class ?>">
+									<div class="w-3 h-3 <?= $color_class ?> rounded-full animate-pulse"></div>
+									<div class="flex-1">
+										<p class="text-gray-800 font-medium"><?= htmlspecialchars($activity['title']) ?></p>
+										<p class="text-sm text-gray-500"><?= htmlspecialchars($activity['subtitle']) ?></p>
+									</div>
+									<span class="text-sm text-gray-400 bg-white px-3 py-1 rounded-full shadow-sm"><?= $time_ago ?></span>
+								</div>
+							<?php endforeach; ?>
+						<?php else: ?>
+							<div class="text-center py-8 text-gray-500">
+								<i class="fas fa-info-circle text-2xl mb-2"></i>
+								<p>No recent activities found</p>
 							</div>
-							<span class="text-sm text-gray-400 bg-white px-3 py-1 rounded-full shadow-sm">2 hours ago</span>
-						</div>
-						<div class="flex items-center space-x-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-							<div class="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-							<div class="flex-1">
-								<p class="text-gray-800 font-medium">New club "Photography Club" created</p>
-								<p class="text-sm text-gray-500">Category: Arts & Culture</p>
-							</div>
-							<span class="text-sm text-gray-400 bg-white px-3 py-1 rounded-full shadow-sm">1 day ago</span>
-						</div>
-						<div class="flex items-center space-x-4 p-4 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-100">
-							<div class="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
-							<div class="flex-1">
-								<p class="text-gray-800 font-medium">Student merit updated for John Doe</p>
-								<p class="text-sm text-gray-500">Merit points: +15</p>
-							</div>
-							<span class="text-sm text-gray-400 bg-white px-3 py-1 rounded-full shadow-sm">2 days ago</span>
-						</div>
+						<?php endif; ?>
 					</div>
 				</div>
+				
+
 			</div>
 
 			<!-- Clubs Management Section -->
 			<div id="clubs" class="section p-8 hidden">
+				<?php 
+				$breadcrumb = Breadcrumb::forAdminSection('Manage Clubs', 'fas fa-users');
+				echo $breadcrumb->render();
+				?>
 				<div class="flex justify-between items-center mb-8">
 					<div>
 						<h2 class="text-4xl font-extrabold text-[#0F172A]">Manage Clubs</h2>
@@ -390,6 +501,10 @@ $merit_result = mysqli_query($connect, $merit_query);
 
 			<!-- Clubbers Management Section -->
 			<div id="clubbers" class="section p-8 hidden">
+				<?php 
+				$breadcrumb = Breadcrumb::forAdminSection('Manage Clubbers', 'fas fa-user-tie');
+				echo $breadcrumb->render();
+				?>
 				<div class="flex justify-between items-center mb-8">
 					<div>
 						<h2 class="text-4xl font-extrabold text-[#0F172A]">Manage Clubbers</h2>
@@ -439,6 +554,10 @@ $merit_result = mysqli_query($connect, $merit_query);
 
 			<!-- Student Merit Section -->
 			<div id="merit" class="section p-8 hidden">
+				<?php 
+				$breadcrumb = Breadcrumb::forAdminSection('Student Merit', 'fas fa-star');
+				echo $breadcrumb->render();
+				?>
 				<div class="mb-8 text-center">
 					<h2 class="text-4xl font-extrabold text-[#0F172A]">Student Merit Monitoring</h2>
 					<div class="w-24 h-1 bg-gradient-to-r from-[#F59E0B] to-[#EF4444] mx-auto mt-3 rounded"></div>
@@ -475,6 +594,8 @@ $merit_result = mysqli_query($connect, $merit_query);
 				</div>
 			</div>
 		</div>
+		
+
 	</div>
 
 	<!-- Add Club Modal -->
@@ -567,6 +688,8 @@ $merit_result = mysqli_query($connect, $merit_query);
 			</div>
 		</div>
 	</div>
+	
+
 
 	<script>
 	function showSection(sectionId) {
@@ -588,6 +711,7 @@ $merit_result = mysqli_query($connect, $merit_query);
 	}
 	function closeEditClubberModal(){document.getElementById('editClubberModal').classList.add('hidden');}
 
+
 	// SweetAlert2 deletion confirms
 	document.addEventListener('click', function(e){
 		const form = e.target.closest('form.confirm-delete');
@@ -608,6 +732,22 @@ $merit_result = mysqli_query($connect, $merit_query);
 
 	<style>
 	.active-section{background-color:#1E293B}
+
+/* Notification animations */
+.animate-slide-down {
+    animation: slideDown 0.5s ease-out forwards;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%) translateX(-50%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) translateX(-50%);
+        opacity: 1;
+    }
+}
 	.section{min-height:calc(100vh - 2rem)}
 	.table-container{background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border-radius:1rem;box-shadow:0 10px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04)}
 	</style>
