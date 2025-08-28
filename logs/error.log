@@ -304,3 +304,17 @@ Trace:
 #5 C:\xampp\htdocs\Club-Management-System\index.php(9): require_once('C:\\xampp\\htdocs...')
 #6 C:\xampp\htdocs\Club-Management-System\login.php(20): include('C:\\xampp\\htdocs...')
 #7 {main}
+[2025-08-27 16:19:12] Exception: The number of elements in the type definition string must match the number of bind variables in C:\xampp\htdocs\Club-Management-System\student_profile.php on line 66
+User: 2 (student)
+URL: /Club-Management-System/student_profile.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\student_profile.php(66): mysqli_stmt_bind_param(Object(mysqli_stmt), 'sssssbi', 'hazimiqwan', 'Hazim Iqwan', 'hazimiqwan0511@...', '1795', 'Diploma In Comp...', 2)
+#1 {main}
+[2025-08-27 16:20:27] Exception: The number of elements in the type definition string must match the number of bind variables in C:\xampp\htdocs\Club-Management-System\student_profile.php on line 66
+User: 2 (student)
+URL: /Club-Management-System/student_profile.php
+IP: ::1
+Trace:
+#0 C:\xampp\htdocs\Club-Management-System\student_profile.php(66): mysqli_stmt_bind_param(Object(mysqli_stmt), 'sssssbi', 'hazimiqwan', 'Hazim Iqwan', 'hazimiqwan0511@...', '1795', 'Diploma In Comp...', 2)
+#1 {main}

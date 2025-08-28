@@ -105,7 +105,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       overflow: hidden;
       border-radius: 15px;
       box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-      background: white;
+      background:
+        linear-gradient(90deg, rgba(15,23,42,0.72) 0%, rgba(15,23,42,0.55) 35%, rgba(255,255,255,0.92) 65%, rgba(255,255,255,1) 100%),
+        url('img/login_bg.png') left center/cover no-repeat,
+        url('img/login_bg.jpg') left center/cover no-repeat,
+        #ffffff;
+    }
+
+    /* Decorative left panel when login is active */
+    .container.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 50%;
+      height: 100%;
+      border-top-left-radius: 15px;
+      border-bottom-left-radius: 15px;
+      background:
+        url('img/login_bg.png') center/cover no-repeat,
+        url('img/login_bg.jpg') center/cover no-repeat,
+        linear-gradient(135deg, #0F172A, #1E293B);
     }
 
     .page {
@@ -120,8 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .page1 {
       left: 0;
       width: 100%;
-      background: linear-gradient(to bottom right, #16a34a, #065f46);
-      color: white;
+      background: linear-gradient(to bottom right, #0F172A, #1E293B);
+      color: #F1F5F9;
       z-index: 1;
       transform: translateX(0);
       display: flex;
@@ -147,33 +167,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* ACTIVE STATE */
     .container.active .page1 {
-      transform: translateX(-50%);
+      transform: translateX(-100%);
+      opacity: 0;
     }
 
     .container.active .page2 {
       transform: translateX(0);
       opacity: 1;
+      /* keep 50% so left decorative area is visible */
+      width: 50%;
     }
+
+    /* Left info overlay */
+    .left-info {
+      position: absolute;
+      left: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40%;
+      max-width: 420px;
+      color: #F8FAFC;
+      background: rgba(15, 23, 42, 0.35);
+      padding: 20px 24px;
+      border-radius: 12px;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      display: none;
+      z-index: 3;
+    }
+    .left-info h3 { margin: 0 0 8px 0; font-size: 22px; }
+    .left-info p { margin: 0 0 12px 0; font-size: 14px; color: #E2E8F0; }
+    .left-info ul { margin: 0; padding-left: 18px; font-size: 13px; color: #E2E8F0; }
+    .left-info li { margin: 6px 0; }
+    .left-info .badge { display:inline-block; background:#F59E0B; color:#0F172A; padding:4px 10px; border-radius:9999px; font-weight:600; font-size:12px; }
+    .container.active .left-info { display: block; }
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center bg-gray-100">
 
   <div id="container" class="container">
+    <!-- Left informational overlay -->
+    <div class="left-info">
+      <img src="img/logo.png" alt="Logo" style="width:56px;height:56px;border-radius:12px;background:#ffffff;padding:6px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:block;margin-bottom:10px;" />
+      <span class="badge">KPM Club Portal</span>
+      <h3>Discover. Participate. Earn.</h3>
+      <p>Join campus clubs, track your activities and collect merit points for your achievements.</p>
+      <ul>
+        <li>Secure login with Google or email</li>
+        <li>One place for clubs, events and points</li>
+        <li>Fast notifications and modern UI</li>
+      </ul>
+    </div>
     <!-- Page 1 -->
     <div class="page page1">
-      <div class="bg-white text-green-700 rounded-full w-16 h-16 flex items-center justify-center mb-6">
+      <div class="bg-white text-[#0F172A] rounded-full w-16 h-16 flex items-center justify-center mb-6">
         🔥
       </div>
       <h1 class="text-3xl font-bold mb-2">Welcome Back!</h1>
       <p class="text-center text-sm mb-6">To stay connected with us please login with your personal info</p>
-      <button id="show-login-btn" class="border border-white px-6 py-2 rounded-full hover:bg-white hover:text-green-700 transition">
+      <button id="show-login-btn" class="border border-white px-6 py-2 rounded-full hover:bg-white hover:text-[#0F172A] transition">
         SIGN IN
       </button>
     </div>
 
     <!-- Page 2 -->
     <div class="page page2">
-      <h2 class="text-2xl font-bold text-green-700 mb-6 text-center">Welcome</h2>
+      <h2 class="text-2xl font-bold text-[#0F172A] mb-6 text-center">Welcome</h2>
       <p class="text-gray-600 text-center mb-6">Login to your account to continue</p>
 
       <?php if ($error_message): ?>
@@ -184,15 +243,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       <form method="POST" class="space-y-4">
         <input type="text" name="username" placeholder="Email..." required
-               class="w-full px-4 py-3 border rounded-full focus:ring-2 focus:ring-green-600">
+               class="w-full px-4 py-3 border rounded-full focus:ring-2 focus:ring-amber-500">
         <input type="password" name="password" placeholder="Password..." required
-               class="w-full px-4 py-3 border rounded-full focus:ring-2 focus:ring-green-600">
+               class="w-full px-4 py-3 border rounded-full focus:ring-2 focus:ring-amber-500">
 
         <div class="text-right">
-                              <a href="#" class="text-sm text-green-600 hover:underline">Need help?</a>
+                              <a href="#" class="text-sm text-amber-600 hover:underline">Need help?</a>
         </div>
 
-        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-full">
+        <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-[#0F172A] py-3 rounded-full font-semibold">
           LOG IN
         </button>
       </form>
@@ -210,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </a>
 
       <p class="mt-6 text-center text-sm text-gray-600">
-        Don’t have an account? <a href="signup.php" class="text-green-600 hover:underline">Sign up</a>
+        Don’t have an account? <a href="signup.php" class="text-amber-600 hover:underline">Sign up</a>
       </p>
     </div>
   </div>
