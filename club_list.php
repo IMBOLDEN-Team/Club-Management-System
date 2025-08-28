@@ -12,6 +12,7 @@ require_once __DIR__ . '/components/breadcrumb.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     
@@ -174,22 +175,14 @@ require_once __DIR__ . '/components/breadcrumb.php';
                                     <div class="space-y-3">
                                         <!-- View Details Button -->
                                         <button 
-                                            onclick="viewClubDetails(<?= $club_id ?>)"
+                                            onclick="openClubModal(<?= $club_id ?>)"
                                             class="w-full bg-gradient-to-r from-[#0F172A] to-[#334155] text-white px-6 py-3 rounded-xl font-semibold hover:from-[#F59E0B] hover:to-[#EF4444] transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group/btn"
                                         >
                                             <span class="relative z-10">View Details</span>
                                             <div class="absolute inset-0 bg-white/20 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
                                         </button>
                                         
-                                        <!-- View Activities Button (only for students) -->
-                                        <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'student'): ?>
-                                            <a href="club.php?id=<?= $club_id ?>" 
-                                               class="w-full bg-gradient-to-r from-[#F59E0B] to-[#EF4444] hover:from-[#EF4444] hover:to-[#F59E0B] text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group/btn text-center block"
-                                            >
-                                                <span class="relative z-10">View Activities</span>
-                                                <div class="absolute inset-0 bg-white/100 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
-                                            </a>
-                                        <?php endif; ?>
+                                        <!-- View Activities removed per request -->
                                     </div>
                                 </div>
                             </div>
@@ -267,9 +260,17 @@ require_once __DIR__ . '/components/breadcrumb.php';
             }
         }
         
-        // Redirect to club details
-        function viewClubDetails(clubId) {
-            window.location.href = `club.php?club_id=${clubId}`;
+        // Open club details inside modal (keeps sidebar fixed)
+        function openClubModal(clubId) {
+            const url = `club.php?club_id=${clubId}&embed=1`;
+            Swal.fire({
+                width: '90vw',
+                padding: 0,
+                background: 'transparent',
+                showConfirmButton: false,
+                showCloseButton: true,
+                html: `<div style="width:100%;height:80vh;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.2)"><iframe src="${url}" style="border:0;width:100%;height:100%"></iframe></div>`
+            });
         }
         
         // Add entrance animations
