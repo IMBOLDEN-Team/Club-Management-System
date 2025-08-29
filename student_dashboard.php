@@ -83,6 +83,12 @@ try {
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Performance hints: preconnect to CDNs and prefetch profile page -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="prefetch" href="student_profile.php" as="document">
 </head>
 <body class="bg-gray-100">
     <!-- Display any system errors (for admin/debug purposes) -->
@@ -165,7 +171,7 @@ try {
                     </div>
                     <div class="hidden sm:flex gap-3">
                         <a href="club_list.php" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm">Browse Clubs</a>
-                        <a href="student_profile.php" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm">My Profile</a>
+                        <a href="student_profile.php" rel="prefetch" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm">My Profile</a>
                     </div>
                 </div>
             </div>
@@ -294,7 +300,7 @@ try {
                                             <div class="text-xs text-gray-500">ID: <?= (int)$club['club_id'] ?></div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href="club.php?club_id=<?= (int)$club['club_id'] ?>" class="text-blue-600 hover:text-blue-900 px-3 py-1.5 rounded-md hover:bg-blue-50 border border-blue-100">View</a>
+                                            <button onclick="openClubModal(<?= (int)$club['club_id'] ?>)" class="text-blue-600 hover:text-blue-900 px-3 py-1.5 rounded-md hover:bg-blue-50 border border-blue-100">View</button>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>
@@ -342,7 +348,8 @@ try {
                                     <?php while ($a = mysqli_fetch_assoc($activities_result)): ?>
                                     <tr class="hover:bg-gray-50 transition-colors duration-200">
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900"><?= sanitizeOutput($a['activity_name']) ?></div>
+                                            <div class="text-sm font-semibold text-gray-900"><?= sanitizeOutput($a['activity_name']) ?></div>
+                                            <div class="text-xs text-gray-500">By <?= sanitizeOutput($a['club_name']) ?></div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm text-gray-600"><?= formatDate($a['start']) ?> - <?= formatDate($a['end']) ?></div>
@@ -391,6 +398,17 @@ try {
     </div>
 
     <script>
+        function openClubModal(clubId){
+            const url = `club.php?club_id=${clubId}&embed=1`;
+            Swal.fire({
+                width: '90vw',
+                padding: 0,
+                background: 'transparent',
+                showConfirmButton: false,
+                showCloseButton: true,
+                html: `<div style="width:100%;height:80vh;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.2)"><iframe src="${url}" style="border:0;width:100%;height:100%"></iframe></div>`
+            });
+        }
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(section => {
                 section.classList.add('hidden');

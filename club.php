@@ -2,7 +2,10 @@
 session_start();
 
 include 'index.php';
+$minimal = isset($_GET['embed']) && $_GET['embed'] === '1';
+if (!$minimal) {
 include 'header.php';
+}
 
 $clubId = isset($_GET['club_id']) ? (int)$_GET['club_id'] : 0;
 if ($clubId <= 0) {
@@ -98,7 +101,17 @@ $isAtCapacity = $club['member_limit'] !== null && $memberCount >= $club['member_
       </div>
       
       <?php if (isset($_SESSION['flash'])): $f=$_SESSION['flash']; unset($_SESSION['flash']); ?>
-        <div id="flash-message" class="mt-4 px-4 py-3 rounded-lg text-white <?= $f['type']==='success' ? 'bg-green-600' : 'bg-red-600' ?>"><?= htmlspecialchars($f['message']) ?></div>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script>
+          (function(){
+            Swal.fire({
+              icon: '<?= $f['type']==='success' ? 'success' : 'error' ?>',
+              title: '<?= $f['type']==='success' ? 'Success' : 'Error' ?>',
+              text: '<?= htmlspecialchars($f['message'], ENT_QUOTES) ?>',
+              confirmButtonText: 'OK'
+            });
+          })();
+        </script>
       <?php endif; ?>
     </div>
 
@@ -130,6 +143,7 @@ $isAtCapacity = $club['member_limit'] !== null && $memberCount >= $club['member_
                 <span class="text-xs text-gray-500"><?= date('M d, Y H:i', strtotime($a['start'])) ?></span>
               </div>
               <h3 class="text-lg font-semibold text-[#0F172A] mb-1"><?= htmlspecialchars($a['name']) ?></h3>
+              <div class="text-xs text-[#64748B] mb-1">By <?= htmlspecialchars($club['name']) ?></div>
               <div class="text-sm text-[#64748B] mb-3">
                 <div>Start: <?= date('Y-m-d H:i', strtotime($a['start'])) ?></div>
                 <div>End: <?= date('Y-m-d H:i', strtotime($a['end'])) ?></div>
@@ -138,9 +152,9 @@ $isAtCapacity = $club['member_limit'] !== null && $memberCount >= $club['member_
                 <span class="text-xs font-medium px-2 py-1 bg-amber-100 text-amber-800 rounded">Merit: <?= (int)$a['merit_point'] ?></span>
                 <?php if ($userIsStudent): ?>
                   <?php if ($joined): ?>
-                    <form action="leave_activity.php" method="POST">
+                    <form action="leave_activity.php" method="POST" class="leave-form">
                       <input type="hidden" name="club_activity_id" value="<?= $aid ?>">
-                      <button class="px-3 py-2 rounded-md bg-red-50 text-red-700 hover:bg-red-100 text-sm" <?= $started ? 'disabled' : '' ?>>Leave</button>
+                      <button class="px-3 py-2 rounded-md bg-red-50 text-red-700 hover:bg-red-100 text-sm" <?= $ended ? 'disabled' : '' ?>>Leave</button>
                     </form>
                   <?php else: ?>
                     <form action="join_activity.php" method="POST">
@@ -169,6 +183,27 @@ $isAtCapacity = $club['member_limit'] !== null && $memberCount >= $club['member_
   </div>
 </main>
 
-<?php include 'footer.php'; ?>
+<?php if (!$minimal) { include 'footer.php'; } ?>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  // Confirm before leaving an activity
+  document.querySelectorAll('form.leave-form').forEach(function(form){
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      Swal.fire({
+        title: 'Leave this activity?',
+        text: 'You can re-join later if the activity has not ended.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, leave',
+      }).then(function(result){
+        if (result.isConfirmed) form.submit();
+      });
+    });
+  });
+</script>
 
 
